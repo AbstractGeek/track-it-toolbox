@@ -1,5 +1,5 @@
-function [] = copyOdorExperimentData()
-% function [] = copyOdorExperimentData()
+function [] = copyTrackitExperimentData()
+% function [] = copyTrackitExperimentData()
 %
 %
 %
