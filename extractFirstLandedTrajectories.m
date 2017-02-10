@@ -87,7 +87,7 @@ for i=1:length(treatments)
             for k=1:length(trials)
                 
                 [trackit_sorted_data.(treatments{i}).(days{j}).(trials{k}), selected_fly] = ...
-                    getFirstLanded(trackit_traj.(treatments{i}).(days{j}).(trials{k}), cs);
+                    getFirstLanded(trackit_traj.(treatments{i}).(days{j}).(trials{k}), cs);                
                 
                 % Save data as csv and copy to main folder
                 writetable(trackit_sorted_data.(treatments{i}).(days{j}).(trials{k}),...
@@ -144,15 +144,27 @@ function [firstLanded, selected_fly] = getFirstLanded(trialData, cs)
 % 10th Feb, 2017
 
 objects = fieldnames(trialData);
-minimum_dist = zeros(size(objects));
+minimum_dist = nan(size(objects));
+land_time = nan(size(objects));
+start_dist = false(size(objects));
+
+dist_threshold = 0.08;      % 8 cms
+dist_roundoff = 2;          % 1 cm round off is good enough
 
 for i = 1:length(objects)
-    minimum_dist(i) = sqrt(sum([trialData.(objects{i}).X(end) - cs(1),...
+    minimum_dist(i) = floorn(sqrt(sum([trialData.(objects{i}).X(end) - cs(1),...
         trialData.(objects{i}).Y(end) - cs(2),...
-        trialData.(objects{i}).Z(end) - cs(3)].^2));    
+        trialData.(objects{i}).Z(end) - cs(3)].^2)),dist_roundoff);
+    land_time(i) = trialData.(objects{i}).time(end);
+    start_dist(i) = (sqrt(sum([trialData.(objects{i}).X(1) - cs(1),...
+        trialData.(objects{i}).Y(1) - cs(2),...
+        trialData.(objects{i}).Z(1) - cs(3)].^2))) >= dist_threshold;
 end
 
-obj_table = sortrows(table(objects, minimum_dist),{'minimum_dist'},{'ascend'});
+obj_table = sortrows(table(objects(start_dist), minimum_dist(start_dist),...
+    land_time(start_dist),...
+    'VariableNames',{'objects','minimum_dist','land_time'}),...
+    {'minimum_dist'},{'ascend'});
 selected_fly = obj_table.objects{1};
 
 % Create table and reset time
@@ -178,4 +190,17 @@ temp_table{1,:} =  reshaped_cs;
 % add it to the main table
 firstLanded = [firstLanded, temp_table];
 
+end
+
+
+function [Xr] = floorn(X,n)
+% function [X] = floorn(X,n)
+% 
+% Floors the input at the nth decimal place (similar to round at nth
+% decimal point)
+% 
+% Dinesh Natesan
+% 10th Feb 2015
+
+Xr = floor(X*10^n)*10^-n;
 end
