@@ -1,18 +1,38 @@
-function [cs] = extractObjectLocations(cameradata)
-% function [objects] = extractObjectLocations(csvfile)
+function [cs, trials] = extractObjectLocations(trialData)
+% function [cs, trials] = extractObjectLocations(trialData)
 % 
+% A very simple function (for now) that extracts object xyz points and
+% returns it as cs. Currently just detects only one object and it simply
+% takes a mean of all the points. Might get complicated as the treatment
+% types change.
 % 
-% 
+% Dinesh Natesan
+% 10 Feb, 2017
 
-%% Get object xyz from cameradata
-pts = extractXYZfromCameraData(cameradata);        
+% Defaults
+objposition_names = {'objpositions'};
 
-%% Extract the object center from the location
-cs = NaN(length(pts),3);
-for i=1:length(pts)
-    curr = pts{i};
-    cs(i,:) = mean(curr(:,2:4));
+trials = fieldnames(trialData);
+objtrials = trials(ismember(trials, objposition_names));
+
+if (length(objtrials) ~= 1)
+    cs = length(objtrials);
+    trials = [];
+    return;
 end
 
+objects = fieldnames(trialData.(objtrials{1}));
+if (length(objects) > 1)
+    cs = [0, length(objects)];
+    trials = [];
+    return;
+end
+
+meanX = nanmean(trialData.(objtrials{1}).(objects{1}).X);
+meanY = nanmean(trialData.(objtrials{1}).(objects{1}).Y);
+meanZ = nanmean(trialData.(objtrials{1}).(objects{1}).Z);
+
+cs = [meanX, meanY, meanZ];
+trials(ismember(trials, objposition_names)) = [];
 
 end

@@ -1,25 +1,16 @@
-function [] = copyTrackitExperimentData()
+function [raw_data_matfile] = copyTrackitExperimentData(expDir,outDir,backupDir)
 % function [] = copyTrackitExperimentData()
 %
 %
 %
 %
-% Dinesh Natesan, 4th Aug 2014
-%
-
-%% Set User Preferences
-inputDir_pref = '/home/dinesh/Desktop/Track-it-test/datafolder';
-outputDir_pref = '/home/dinesh/Desktop/Track-it-test/outputdir';
-moveDir_pref = '/home/dinesh/Desktop/Track-it-test/movedir';
+% Dinesh Natesan
+% 8th Feb 2017
 
 minTrajLength = 30;      % frames
-trackit_data_mat = 'trackit_data.mat';
+trackit_data_mat = 'trackit_raw_data.mat';
 
 %% Let's rock and roll?
-% Get the experiment folder, output folder and backup folder
-expDir = uigetdir(inputDir_pref,'Experiment Folder (Trackit save folder)');
-outDir = uigetdir(outputDir_pref,'Output Folder (Main Data folder)');
-backupDir = uigetdir(moveDir_pref,'Backup Folder (To move data)');
 % Obtain a list of subfolders
 listOfContents = dir(expDir);
 isubDir = [listOfContents(:).isdir];
@@ -29,7 +20,7 @@ dirList(ismember(dirList,{'.','..'})) = [];
 % Append events to a log file in the output directory
 log_file = fullfile(outDir, 'trackit_data_copy.log');
 logid = fopen(log_file, 'a');
-logcleanup = @() fclose(log_file); 
+logcleanup = @() fclose(logid); 
 fprintf(logid,'\n#################### %s ####################\n\n',datestr(now));
 
 % Clean up directory names
@@ -37,10 +28,14 @@ fprintf(logid, 'Checking directory names\n');
 dirTable = decipherDirectoryNames (dirList, logid);
 dirNum = size(dirTable,1);
 
+% Save raw data mat file location
+raw_data_matfile = fullfile(outDir,trackit_data_mat);
+
 % Load mat file directory
-if (exist(fullfile(outDir,trackit_data_mat),'file') == 7)
-    load(fullfile(outDir,trackit_data_mat));
+if (exist(raw_data_matfile,'file') == 7)
+    load(raw_data_matfile);
 end
+
 %% Begin by copying the headers
 % open a waitbar
 h = waitbar((1-1)/(dirNum-1),strcat('Processing: Trial ',num2str(1),'-',num2str(dirNum),'...'));
@@ -93,7 +88,7 @@ end
 close(h);
 
 % Save mat file
-save(fullfile(outDir,trackit_data_mat),'-struct','trackit_data');
+save(raw_data_matfile,'-struct','trackit_data');
 
 fprintf(logid, '\nWhole trackit_data mat file successfully updated and saved\n\n');
 
@@ -102,17 +97,13 @@ fprintf(logid, 'Updating individual treatment mat files:\n');
 treatments = fieldnames(trackit_data);
 for i = 1:length(treatments)
     temp_struct.(treatments{i}) = trackit_data.(treatments{i}); %#ok<STRNU>
-    save(fullfile(outDir,trackit_data.(treatments{i}).name,sprintf('%s.mat',trackit_data.(treatments{i}).name)),...
+    save(fullfile(outDir,trackit_data.(treatments{i}).name,sprintf('%s_raw_data.mat',trackit_data.(treatments{i}).name)),...
     '-struct', 'temp_struct');    
     fprintf(logid, '%s: Successful \n', trackit_data.(treatments{i}).name);
     clearvars temp_struct
 end
 
 fprintf(logid, '\n\nCOPY SUCCESSFUL! \n\n');
-
-% Extract trajectories
-% extractTrajectories(fullfile(outDir,expname));
-
 
 end
 

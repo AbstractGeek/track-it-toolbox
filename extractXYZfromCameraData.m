@@ -1,36 +1,85 @@
-function [xyzData] = extractXYZfromCameraData(camData)
-% function [xyzData] = extractTrajectories(camData)
-% Pulls out the Time,X,Y,Z from the inputted data for both cameras
-% Averages out the X,Y,Z for both cameras and outputs the result
-% Ignores the single frames
-% Output format - each cell has one trajectory
-%               - Contents of a cell [Time,X,Y,Z]
+function [sortedData, cameraData, cameraMat] = extractXYZfromCameraData(rawData)
+% function [sortedData, cameraData, cameraMat] = extractXYZfromCameraData(rawData)
+% Extracts out time, X, Y, Z from the input data for all cameras (camera
+% number independent) and averages X, Y, Z of cameras in the same time point
+% for each object in the dataset.
 % 
+% Input: rawData - table generated from Filtered file from trackit
 % 
-% Dinesh Natesan, 4th Aug 2014
+% Output: 
+% sortedData - contains a table for each object tracked by trackit.
+% table contains time and averaged X, Y, Z from all camera views for each
+% time point.
 % 
+% cameraData - contains a table for each object tracked by trackit.
+% table containing time, X, Y, Z for each camera. This is the raw data used
+% to generate the table in sortedData
+% 
+% cameraMat - same data as the cameraData table except save in mat files so
+% as to allow easy conversion to csv files.
+% 
+% Dinesh Natesan 
+% 9th Feb 2017
+
+% Defaults
+t_round_dec_pt = 4;       % max_frame_rate = 120; 0.0001 resolution should be more than enough
 
 % Sort by objects
-obj = unique(camData(:,2));
-xyzData = cell(length(obj),1);
-delList = [];
-for i = 1:length(obj)
-    objInd = (camData(:,2)== obj(i));
-    tempData = [camData(objInd,1),camData(objInd,3),camData(objInd,16:18)];
-    toMerge=[false;diff(tempData(:,2))<=1e-4]; %mergeData that have been measured within a 100us interval
-    % Ignoring single data and picking ones that were detected by both
-    % cameras
-    mergedTime=(tempData(toMerge,2)+tempData([toMerge(2:end);false],2))/2;
-    mergedX=(tempData(toMerge,3)+tempData([toMerge(2:end);false],3))/2;
-    mergedY=(tempData(toMerge,4)+tempData([toMerge(2:end);false],4))/2;
-    mergedZ=(tempData(toMerge,5)+tempData([toMerge(2:end);false],5))/2;
-    xyzData{i,1} = [mergedTime,mergedX,mergedY,mergedZ];
-    if isempty(xyzData{i,1})
-        delList = [delList;i];
+obj = sort(unique(rawData.object));
+cameras = sort(unique(rawData.camera));
+sortedData = struct;
+cameraData = struct;
+cameraMat = struct;
+
+for i = 1:length(obj)    
+    % Extract object indexes and associated time values
+    objInd = (rawData.object== obj(i));
+    time = sort(unique(round(rawData.time(objInd),t_round_dec_pt)));
+    
+    % Initialize camera variables
+    camera_time = nan(length(time),length(cameras));
+    camera_X = nan(length(time),length(cameras));
+    camera_Y = nan(length(time),length(cameras));
+    camera_Z = nan(length(time),length(cameras));
+    
+    % Extract camera specific values
+    for j=1:length(cameras)
+        % Extract camera indices of this object
+        camera_ind = (rawData.camera == cameras(j)) & objInd;
+        % Extract time, X, Y, Z
+        temp_time = round(rawData.time(camera_ind),t_round_dec_pt);
+        temp_X = rawData.X(camera_ind);
+        temp_Y = rawData.Y(camera_ind);
+        temp_Z = rawData.Z(camera_ind);
+        % Find intersection and copy data
+        [~,ia,~] = intersect(time,temp_time);
+        camera_time(ia,j) = temp_time;
+        camera_X(ia,j) = temp_X;
+        camera_Y(ia,j) = temp_Y;
+        camera_Z(ia,j) = temp_Z;
+        % Clear temp variables
+        clearvars temp_time temp_X temp_Y temp_Z;
     end
-    % Done - leave
+    
+    % Sanity check
+    if ~all(time == nanmean(camera_time,2))
+       error('Sanity Check didnt work in extractXYZfromCameraData');
+    end
+    
+    % Average and fill sorted data table    
+    sortedData.(sprintf('obj%04d',obj(i))) = ...
+        table(time,nanmean(camera_X,2),nanmean(camera_Y,2),nanmean(camera_Z,2),...
+        'VariableNames',{'time','X','Y','Z'});  
+    
+    % Generate struct of sorted data before averaging
+    cameraData.(sprintf('obj%04d',obj(i))) = table(camera_time, camera_X, camera_Y, camera_Z);    
+    cameraMat.(sprintf('obj%04d',obj(i))) = [camera_time, camera_X, camera_Y, camera_Z];
+   
 end
-% Delete all empty cell arrays
-xyzData(delList)=[];
-% Done, leave
+
+% Create headers
+camera_names = arrayfun(@(x) sprintf('cam%01d', x), cameras, 'UniformOutput', false);
+cameraMat.headers = [strcat(camera_names,'_time')',strcat(camera_names,'_X')',...
+    strcat(camera_names,'_Y')',strcat(camera_names,'_Z')'];
+
 end
