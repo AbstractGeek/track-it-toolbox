@@ -22,17 +22,17 @@ if (length(objtrials) ~= 1)
 end
 
 objects = fieldnames(trialData.(objtrials{1}));
-if (length(objects) > 1)
-    cs = [0, length(objects)];
-    trials = [];
-    return;
+cs = NaN(length(objects), 3);
+
+% Find the mean X, Y, Z for each object
+for i=1:length(objects)
+    cs(i,1) = nanmean(trialData.(objtrials{1}).(objects{i}).X);
+    cs(i,2) = nanmean(trialData.(objtrials{1}).(objects{i}).Y);
+    cs(i,3) = nanmean(trialData.(objtrials{1}).(objects{i}).Z);    
 end
 
-meanX = nanmean(trialData.(objtrials{1}).(objects{1}).X);
-meanY = nanmean(trialData.(objtrials{1}).(objects{1}).Y);
-meanZ = nanmean(trialData.(objtrials{1}).(objects{1}).Z);
-
-cs = [meanX, meanY, meanZ];
+% Sort cs based on X
+cs = sortrows(cs);
 trials(ismember(trials, objposition_names)) = [];
 
 end
