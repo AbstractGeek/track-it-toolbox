@@ -4,9 +4,9 @@
 %% Defaults
 force_rewrite = 0;
 
-inputDir_pref = '/home/dinesh/Desktop/Track-it-test/datafolder';
-outputDir_pref = '/home/dinesh/Desktop/Track-it-test/outputdir';
-moveDir_pref = '/home/dinesh/Desktop/Track-it-test/movedir';
+inputDir_pref = '/media/dinesh/';
+outputDir_pref = '/media/dinesh/';
+moveDir_pref = '/media/dinesh/';
 
 %% Get the experiment folder, output folder and backup folder
 expDir = uigetdir(inputDir_pref,'Experiment Folder (Trackit save folder)');

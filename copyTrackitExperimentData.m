@@ -50,6 +50,14 @@ for i=1:dirNum
     waitbar((i-1)/(dirNum-1),h,strcat('Processing: Trial ',num2str(i),'-',num2str(dirNum),'...'));
     currDir = dirTable.expDirs{i};
     currFile = fullfile(expDir,currDir,dirTable.inFile{i});
+    if (exist(currFile, 'file') ~= 2)
+       % file doesn't exist
+       % show a warning and continue
+       fprintf('File: %s doesn''t exit. Skipping\n', currDir);
+       fprintf(logid, 'File: %s doesn''t exit. Skipping\n', currDir);
+       continue;
+    end
+    
     currData = readtable(currFile);
     if ~isempty(currData) && (size(currData,1) > minTrajLength)
         % Save the trajectory data into a mat folder
@@ -62,7 +70,7 @@ for i=1:dirNum
             trackit_data.(treatment_name).name = dirTable.treatment{i};
         end
         
-        % Copy filtered data into the treatment folder
+        % Copy filtered data into the treatment folder                    
         treatmentDir = fullfile(outDir, dirTable.treatment{i}, 'Raw-Data');
         if ~isdir(treatmentDir) 
             % Add a entry into log file
@@ -76,7 +84,7 @@ for i=1:dirNum
             % Add a entry into log file
             mkdir(treatmentDir);           
         end       
-        movefile(fullfile(expDir,currDir),treatmentDir);        
+        copyfile(fullfile(expDir,currDir),treatmentDir);        
         
         fprintf(logid, '%s: Successfully processed\n', currDir);        
     else

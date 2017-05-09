@@ -18,9 +18,6 @@ for i = 1:length(objects)
 end
 
 legend show;
-axis square;
-axis equal;
-axis vis3d;
 
 % Save data
 savefig(filename);

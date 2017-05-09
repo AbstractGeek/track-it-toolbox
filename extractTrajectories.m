@@ -6,7 +6,7 @@ function [trackit_traj_matfile] = extractTrajectories(matfile, force_rewrite)
 % Dinesh Natesan, 4th Aug 2014
 
 if (nargin<1)
-    error('extractTrajectories needs a rootdir input to load matfiles');
+    error('extractTrajectories needs a matfile input to load raw data');
 elseif nargin == 1
     force_rewrite = 0;
 end
@@ -19,7 +19,7 @@ trackit_data = load(matfile);
 
 trackit_traj_matfile = fullfile(rootdir, trackit_traj_mat);
 
-if exist(trackit_traj_matfile,'file') == 7
+if exist(trackit_traj_matfile,'file') == 2
     trackit_traj = load(trackit_traj_matfile);   
 else 
     trackit_traj = struct;
@@ -47,7 +47,7 @@ for i=1:length(treatments)
         currDir = fullfile(rootdir,trackit_data.(treatments{i}).name,...
                 'Sorted-Data',days{j});        
         
-        if exist(fullfile(currDir, sprintf('%s_cameraData.mat', days{j})),'file') == 7
+        if exist(fullfile(currDir, sprintf('%s_cameraData.mat', days{j})),'file') == 2
             trackit_camData = load(fullfile(currDir,...
                 sprintf('%s_cameraData.mat', days{j})));
         else
