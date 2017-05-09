@@ -40,7 +40,7 @@ sphere_radius = 0.003;
 cylinder_radius = 0.00025;
 cylinder_height = 0.005;
 redcolor = [0.8980 0 0];
-coralcolor = [0.9882 0.3529 0.3137];
+palepinkcolor = [1.0000 0.8118 0.8627];
 
 % Initialize shape
 [xs,ys,zs]=sphere;
@@ -49,10 +49,10 @@ coralcolor = [0.9882 0.3529 0.3137];
 % Initialize color
 black_sphere = zeros(21,21,3);
 red_sphere = reshape(repmat(redcolor,21*21,1),21,21,3);
-coral_sphere = reshape(repmat(coralcolor,21*21,1),21,21,3);
+coral_sphere = reshape(repmat(palepinkcolor,21*21,1),21,21,3);
 black_cyl= zeros(2,21,3);
 red_cyl = reshape(repmat(redcolor,2*21,1),2,21,3);
-coral_cyl = reshape(repmat(coralcolor,2*21,1),2,21,3);
+palepink_cyl = reshape(repmat(palepinkcolor,2*21,1),2,21,3);
 
 % Assign table for object shape and color
 obj_det = table(cell(size(cs,1),1),cell(size(cs,1),1),cell(size(cs,1),1),...
@@ -94,9 +94,9 @@ obj_det.Color(low_contrast & no_odor) = {black_cyl};
 obj_det.Color(high_contrast & no_odor) = {black_sphere};
 obj_det.EdgeColor(no_odor) = {[0,0,0]};
 % vision + low odor
-obj_det.Color(low_contrast & low_odor) = {coral_cyl};
+obj_det.Color(low_contrast & low_odor) = {palepink_cyl};
 obj_det.Color(high_contrast & low_odor) = {coral_sphere};
-obj_det.EdgeColor(low_odor) = {coralcolor};
+obj_det.EdgeColor(low_odor) = {palepinkcolor};
 % vision + high odor
 obj_det.Color(low_contrast & high_odor) = {red_cyl};
 obj_det.Color(high_contrast & high_odor) = {red_sphere};

@@ -23,7 +23,7 @@ trackit_traj = load(matfile);
 trackit_sorted_data_matfile = fullfile(rootdir, trackit_sorted_data_mat);
 trackit_dist_data_matfile = fullfile(rootdir, trackit_dist_data_mat);
 
-if exist(trackit_sorted_data_matfile,'file') == 2
+if (exist(trackit_sorted_data_matfile,'file') == 2) && (force_rewrite == 0)
     trackit_sorted_data = load(trackit_sorted_data_matfile);
     trackit_dist_data = load(trackit_dist_data_matfile);
 else
@@ -132,11 +132,19 @@ for i=1:length(treatments)
     
     % Save name
     trackit_sorted_data.(treatments{i}).name = trackit_traj.(treatments{i}).name;
+    trackit_dist_data.(treatments{i}).name = trackit_traj.(treatments{i}).name;
     
     % Save first landed trajectories of this treatment as a mat-file
-    temp_struct.(treatments{i}) = trackit_sorted_data.(treatments{i}); %#ok<STRNU>
+    temp_struct.(treatments{i}) = trackit_sorted_data.(treatments{i}); 
     save(fullfile(rootdir,trackit_traj.(treatments{i}).name,...
         sprintf('%s_sorted_data.mat',trackit_traj.(treatments{i}).name)),...
+        '-struct', 'temp_struct');
+    clearvars temp_struct;
+    
+    % Save distance tables of this treatment in a mat-file
+    temp_struct.(treatments{i}) = trackit_dist_data.(treatments{i}); 
+    save(fullfile(rootdir,trackit_traj.(treatments{i}).name,...
+        sprintf('%s_dist_data.mat',trackit_traj.(treatments{i}).name)),...
         '-struct', 'temp_struct');
     clearvars temp_struct;
     
@@ -144,6 +152,7 @@ end
 
 % Save mat file
 save(trackit_sorted_data_matfile,'-struct','trackit_sorted_data');
+save(trackit_dist_data_matfile,'-struct','trackit_dist_data');
 
 end
 
