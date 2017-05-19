@@ -1,4 +1,4 @@
-function [raw_data_matfile] = copyTrackitExperimentData(expDir,outDir,backupDir)
+function [raw_data_matfile] = copyTrackitExperimentData(expDir,outDir,backupDir,force_rewrite)
 % function [] = copyTrackitExperimentData()
 %
 %
@@ -9,6 +9,12 @@ function [raw_data_matfile] = copyTrackitExperimentData(expDir,outDir,backupDir)
 
 minTrajLength = 30;      % frames
 trackit_data_mat = 'trackit_raw_data.mat';
+
+if (nargin<3)
+    error('extractTrajectories needs a matfile input to load raw data');
+elseif nargin == 3
+    force_rewrite = 0;
+end
 
 %% Let's rock and roll?
 % Obtain a list of subfolders
@@ -32,8 +38,10 @@ dirNum = size(dirTable,1);
 raw_data_matfile = fullfile(outDir,trackit_data_mat);
 
 % Load mat file directory
-if (exist(raw_data_matfile,'file') == 7)
-    load(raw_data_matfile);
+if (exist(raw_data_matfile,'file') == 2)
+    trackit_data = load(raw_data_matfile);
+else 
+    trackit_data = struct;
 end
 
 %% Begin by copying the headers
@@ -54,9 +62,19 @@ for i=1:dirNum
        % file doesn't exist
        % show a warning and continue
        fprintf('File: %s doesn''t exit. Skipping\n', currDir);
-       fprintf(logid, 'File: %s doesn''t exit. Skipping\n', currDir);
+       fprintf(logid, 'File: %s doesn''t exist. Skipping\n', currDir);
        continue;
     end
+    
+    % Check if current file already exists in the data and the backup
+    % folder
+    if ((exist(fullfile(fullfile(outDir, dirTable.treatment{i}, 'Raw-Data'),...
+            sprintf('Filtered_%s.csv',currDir)), 'file') == 2) && ...
+            (force_rewrite == 0))
+       % Folder has already been processed.
+       continue;
+    end
+            
     
     currData = readtable(currFile);
     if ~isempty(currData) && (size(currData,1) > minTrajLength)
