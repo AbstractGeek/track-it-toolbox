@@ -38,6 +38,7 @@ treatments = fieldnames(trackit_traj);
 for i=1:length(treatments)
     
     curr_treatment = treatments{i};
+    object_num = sum(isletter(curr_treatment))/2;   
     
     days = fieldnames(trackit_traj.(treatments{i}));
     days(ismember(days, {'name'})) = [];    
@@ -68,8 +69,8 @@ for i=1:length(treatments)
             datestr(now));
         
         % Perform object extraction
-        [cs,trials] = ...
-            extractObjectLocations(trackit_traj.(treatments{i}).(days{j}));        
+        [cs,trials] = extractObjectLocations(...
+            trackit_traj.(treatments{i}).(days{j}),object_num);        
         
         if isempty(trials)
             fprintf('Found no object trials in day %s of treatment %s. Skipping day\n',...
