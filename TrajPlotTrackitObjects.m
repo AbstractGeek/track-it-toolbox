@@ -1,5 +1,8 @@
 function [] = TrajPlotTrackitObjects(sortedData, filename)
-
+% function [] = TrajPlotTrackitObjects(sortedData, filename)
+%
+%
+% Dinesh Natesan 
 
 objects = fieldnames(sortedData);
 

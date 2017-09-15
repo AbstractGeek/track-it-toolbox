@@ -2,6 +2,7 @@ function [] = TrajPlotDayWise(cs, treatment, sortedData, filename)
 % 
 % 
 % 
+% Dinesh Natesan 
 
 objects = fieldnames(sortedData);
 
