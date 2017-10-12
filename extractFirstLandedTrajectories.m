@@ -1,11 +1,25 @@
 function [trackit_sorted_data_matfile] = extractFirstLandedTrajectories(matfile, force_rewrite)
+% function [trackit_sorted_data_matfile] = extractFirstLandedTrajectories(matfile, force_rewrite)
 %
-%
-%
-% Dinesh Natesan, 25th Aug 2014
-%
-
-
+% Sift through all the trajectories captured by the trackit system and only
+% extract the ones where the flies land on the object. Among the flies that
+% land, pick only the first fly.
+% 
+% Inputs:
+%   matfile: 
+%       File location of the matfile containing all extracted trajectories 
+%       of experiments (output of extractTrajectories function).
+%   force_rewrite: 
+%       Flag to rewrite the data even if the analysis has been done before.
+% 
+% Outputs:
+%   trackit_sorted_data_matfile: 
+%       a mat file containing the trajectories of flies that land first
+%       on the odor/visual object (sorted based on treatments and 
+%       experiment days).
+% 
+% Dinesh Natesan 
+% Last modified: 12th Oct 2017
 
 if (nargin<1)
     error('extractFirstLandedTrajectories needs a rootdir input to load matfiles');
@@ -157,6 +171,7 @@ save(trackit_dist_data_matfile,'-struct','trackit_dist_data');
 
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function [firstLanded, selected_fly, dist_tables] = ...
     getFirstLanded(trialData, cs)
@@ -246,6 +261,7 @@ dist_tables = struct('obj_table', obj_table, 'sorted_table', sorted_table);
 
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function [Xr] = floorn(X,n)
 % function [X] = floorn(X,n)
@@ -259,6 +275,8 @@ function [Xr] = floorn(X,n)
 Xr = floor(X*10^n)*10^-n;
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 function [out] = iff(cond,a,b)
 % function iff(cond,a,b)
 % A custom written function that mimic the traditional C+ conditional
@@ -271,5 +289,66 @@ if cond
 else
     out = b;
 end
+
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function [cs, trials] = extractObjectLocations(trialData, object_num)
+% function [cs, trials] = extractObjectLocations(trialData)
+% 
+% A very simple function that extracts object xyz points and
+% returns it as cs. It uses object number to cluster points using k-means
+% clustering. The object number is extracted from the treatment name and
+% has to be an integer. If it is not, a default object number based
+% clustering would be performed which will be checked for validity later
+% on. 
+% 
+% Dinesh Natesan
+% 10 Feb, 2017
+
+% Defaults
+objposition_names = {'objpositions'};
+
+trials = fieldnames(trialData);
+objtrials = trials(ismember(trials, objposition_names));
+
+if (length(objtrials) ~= 1)
+    cs = length(objtrials);
+    trials = [];
+    return;
+end
+
+if (floor(object_num) == object_num)
+    % k-means clustering based object extraction
+    object_data = cell2mat(cellfun(@(x) table2array(x),...
+        struct2cell(trialData.objpositions),'UniformOutput',false));
+    [~,cs,sumd,~] = kmeans(object_data(:,2:4),object_num);
+    
+    if any(round(sumd,3) ~= 0)
+       clustering_error = true; 
+    else
+       clustering_error = false;
+    end
+
+end
+    
+if ((floor(object_num) ~= object_num) || clustering_error)
+    % Standard mean based object extraction
+    objects = fieldnames(trialData.(objtrials{1}));
+    cs = NaN(length(objects), 3);
+    
+    % Find the mean X, Y, Z for each object
+    for i=1:length(objects)
+        cs(i,1) = nanmean(trialData.(objtrials{1}).(objects{i}).X);
+        cs(i,2) = nanmean(trialData.(objtrials{1}).(objects{i}).Y);
+        cs(i,3) = nanmean(trialData.(objtrials{1}).(objects{i}).Z);
+    end
+    
+end
+
+% Sort cs based on X
+cs = sortrows(cs);
+trials(ismember(trials, objposition_names)) = [];
 
 end

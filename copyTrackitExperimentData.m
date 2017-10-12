@@ -1,11 +1,37 @@
 function [raw_data_matfile] = copyTrackitExperimentData(expDir,outDir,backupDir,force_rewrite)
-% function [] = copyTrackitExperimentData()
+% function [raw_data_matfile] = copyTrackitExperimentData(expDir,outDir,backupDir,force_rewrite)
 %
-%
-%
-%
-% Dinesh Natesan
-% 8th Feb 2017
+% Copy all experiment data from experiment directory to output directory,
+% while backing the key files in the backup directory. The code
+% automatically identifies the date, the treatment and the tag for each
+% experiment trial and uses it for sorting. Apart from copying and backing
+% up experiment data, the code also saves the data as a structure sorted
+% based on treatment and experiment day. It also automatically links the
+% trials to the object positions and adds it appropriately (see note
+% below). The raw data is finally saved as a mat_file and its location is
+% outputted.
+% 
+% Note: Folder names of experiment trials show have this format:
+%       "YYYY_MM_DD_treatmentname_tag".
+%       tag can be either trial number (automatically assigned if not
+%       present) or object positions which are required for analysis. T
+%       The code requires one object position tag for every treatment
+%       perform per day in order to consider it a valid experiment.
+%       
+% Inputs:
+%       expDir: Directory containing folders of experiments.
+%       outDir: Directory to copy (and sort) experiment data.
+%       backupDir: Directory to backup the experiment data.
+%       force_rewrite:  Flag to rewrite the data even if the 
+%                       analysis has been done before.
+% 
+% Outputs:
+%   raw_data_matfile: 
+%       a mat file containing the raw data from experiments (sorted based 
+%       on treatments and experiment days). 
+% 
+% Dinesh Natesan 
+% Last modified: 12th Oct 2017
 
 minTrajLength = 30;      % frames
 trackit_data_mat = 'trackit_raw_data.mat';

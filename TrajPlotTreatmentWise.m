@@ -1,6 +1,21 @@
 function [] = TrajPlotTreatmentWise(sorted_matfile)
+% function [] = TrajPlotDayWise(cs, treatment, sortedData, filename)
 % 
+% Plot the trajectory data for each treatment in the sorted_matfile. 
+% Combines experiment days in each treatment, aligns approporiately, and
+% plots the data. Saves it as figures with the name of the trajectory.
 % 
+% Inputs:
+%   sorted_matfile: 
+%       a mat file containing the trajectories of flies that land first
+%       on the odor/visual object (sorted based on treatments and 
+%       experiment days).
+% 
+% Output: 
+%   Saved 3d trajectory figure per treatment.
+% 
+% Dinesh Natesan 
+% Last updated: 12th Oct 2017
 
 % Load data etc.
 data = load(sorted_matfile);

@@ -1,8 +1,20 @@
 function [] = TrajPlotDayWise(cs, treatment, sortedData, filename)
+% function [] = TrajPlotDayWise(cs, treatment, sortedData, filename)
 % 
+% Plot the trajectory data for the sortedData along with the centers of the
+% object (based on treatment tag). 
 % 
+% Inputs:
+%   cs: centers of objects in the treatment.
+%   treatment: treatment tag of the experiment.
+%   sortedData: A structure containing tables of trajectories.
+%   filename: output figure filename
+% 
+% Output: 
+%   Saved 3d trajectory figure.
 % 
 % Dinesh Natesan 
+% Last updated: 12th Oct 2017
 
 objects = fieldnames(sortedData);
 
