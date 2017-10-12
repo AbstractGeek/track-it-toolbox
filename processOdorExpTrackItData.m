@@ -13,6 +13,8 @@ rootDir = fileparts(expDir);
 outDir = uigetdir(rootDir,'Output Folder (Main Data folder)');
 rootDir = fileparts(outDir);
 backupDir = uigetdir(rootDir,'Backup Folder (To move data)');
+rootDir = fileparts(backupDir);
+backupDir = uigetdir(rootDir,'Sorted data folder (sorted data)');
 
 %% Process trackit data
 raw_data_matfile = copyTrackitExperimentData(expDir,outDir,backupDir);
@@ -21,5 +23,6 @@ sorted_matfile = extractFirstLandedTrajectories(all_traj_matfile, force_rewrite)
 
 %% Plot treatmentwise trajectory
 TrajPlotTreatment(sorted_matfile);
+saveSortedTrackitData(sorted_matfile, save_folder);
 
 close all;
