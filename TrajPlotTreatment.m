@@ -1,5 +1,5 @@
-function [] = TrajPlotTreatmentWise(sorted_matfile)
-% function [] = TrajPlotDayWise(cs, treatment, sortedData, filename)
+function [] = TrajPlotTreatment(sorted_matfile)
+% function [] = TrajPlotTreatment(sorted_matfile)
 % 
 % Plot the trajectory data for each treatment in the sorted_matfile. 
 % Combines experiment days in each treatment, aligns approporiately, and
@@ -59,7 +59,7 @@ for i=1:length(treatments)
     end
     
     % Plot data for whole of the treatment
-    TrajPlotDayWise(cs,treatments{i},treatmentData,...
+    TrajPlotData(cs,treatments{i},treatmentData,...
         fullfile(rootdir,sprintf('%s.fig',treatments{i})));
     
     

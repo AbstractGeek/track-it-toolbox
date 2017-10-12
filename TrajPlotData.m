@@ -1,5 +1,5 @@
-function [] = TrajPlotDayWise(cs, treatment, sortedData, filename)
-% function [] = TrajPlotDayWise(cs, treatment, sortedData, filename)
+function [] = TrajPlotData(cs, treatment, sortedData, filename)
+% function [] = TrajPlotData(cs, treatment, sortedData, filename)
 % 
 % Plot the trajectory data for the sortedData along with the centers of the
 % object (based on treatment tag). 
