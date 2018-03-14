@@ -140,7 +140,7 @@ end
 close(h);
 
 % Save mat file
-save(raw_data_matfile,'-struct','trackit_data');
+save(raw_data_matfile,'-struct','trackit_data','-v7.3');
 
 fprintf(logid, '\nWhole trackit_data mat file successfully updated and saved\n\n');
 

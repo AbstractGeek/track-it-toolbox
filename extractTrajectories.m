@@ -110,7 +110,7 @@ for i=1:length(treatments)
         end
         
         save(fullfile(currDir, sprintf('%s_cameraData.mat', days{j})),...
-            '-struct', 'trackit_camData');
+            '-struct', 'trackit_camData','-v7.3');
         clearvars trackit_camData;
     end
     
@@ -121,12 +121,12 @@ for i=1:length(treatments)
     temp_struct.(treatments{i}) = trackit_traj.(treatments{i}); %#ok<STRNU>
     save(fullfile(rootdir,trackit_data.(treatments{i}).name,...
         sprintf('%s_all_trajectories.mat',trackit_data.(treatments{i}).name)),...
-        '-struct', 'temp_struct');       
+        '-struct', 'temp_struct','-v7.3');       
     clearvars temp_struct;    
 end
 
 % Save mat file
-save(trackit_traj_matfile,'-struct','trackit_traj');
+save(trackit_traj_matfile,'-struct','trackit_traj','-v7.3');
 
 fprintf(logid, '\nWhole trackit traj data mat file successfully updated and saved\n\n');
 fprintf(logid, '\n\nTRAJECTORY EXTRACTION SUCCESSFUL! \n\n');

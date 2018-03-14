@@ -14,7 +14,7 @@ outDir = uigetdir(rootDir,'Output Folder (Main Data folder)');
 rootDir = fileparts(outDir);
 backupDir = uigetdir(rootDir,'Backup Folder (To move data)');
 rootDir = fileparts(backupDir);
-backupDir = uigetdir(rootDir,'Sorted data folder (sorted data)');
+save_folder = uigetdir(rootDir,'Sorted data folder (sorted data)');
 
 %% Process trackit data
 raw_data_matfile = copyTrackitExperimentData(expDir,outDir,backupDir);
