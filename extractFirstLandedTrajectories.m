@@ -51,6 +51,8 @@ treatments = fieldnames(trackit_traj);
 
 for i=1:length(treatments)
     
+    fprintf('Processing treatment %s\n', treatments{i});
+    
     curr_treatment = treatments{i};
     object_num = sum(isletter(curr_treatment))/2;   
     
@@ -62,9 +64,11 @@ for i=1:length(treatments)
     
     if ~isdir(trajfolder)
         mkdir(trajfolder);
-    end
+    end    
     
     for j=1:length(days)
+        
+        fprintf('\tProcessing day %s\n', days{j});
         
         currDir = fullfile(rootdir,trackit_traj.(treatments{i}).name,...
             'Sorted-Data',days{j});
@@ -105,6 +109,14 @@ for i=1:length(treatments)
         fprintf(logid,'Object Extraction successful!. Beginning first landed trajectory extraction\n\n');
         
         for k=1:length(trials)
+            
+            fprintf('\t\tProcessing trial %s\n', trials{k});
+            
+            % Save all the tracked objects
+            TrajPlotData(cs, treatments{i},...
+                trackit_traj.(treatments{i}).(days{j}).(trials{k}),...
+                fullfile(currDir, trials{k}, sprintf('%s_%s.fig',days{j},...
+                trials{k})));
             
             [firstLanded, selected_fly,...
                 trackit_dist_data.(treatments{i}).(days{j}).(trials{k})] = ...
@@ -199,7 +211,7 @@ land_time = nan(size(objects));
 dist_threshold = 0.08;      % 8 cms
 dist_roundoff = 2;          % 1 cm round off is good enough
 minimum_dist_threshold = 0.01;   % if greater than 1 cm, do not consider.
-land_dist_threshold = 0.006;     % if less than 6 mm, the fly is considered to have landed on the object
+land_dist_threshold = 0.010;     % if less than 6 mm, the fly is considered to have landed on the object
 
 % find minimum distance for each object
 for i = 1:length(objects)    

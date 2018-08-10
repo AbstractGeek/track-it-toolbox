@@ -23,6 +23,6 @@ sorted_matfile = extractFirstLandedTrajectories(all_traj_matfile, force_rewrite)
 
 %% Plot treatmentwise trajectory
 TrajPlotTreatment(sorted_matfile);
-saveSortedTrackitData(sorted_matfile, save_folder);
+saveSortedTrackItData(sorted_matfile, save_folder);
 
 close all;

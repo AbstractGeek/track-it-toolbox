@@ -96,7 +96,7 @@ for i=1:length(treatments)
             end
             
             % Create trajectories of each object
-            trajFileName = fullfile(outDir, sprintf('%s_%s',days{j},trials{k}));
+            trajFileName = fullfile(outDir, sprintf('%s_%s_raw',days{j},trials{k}));
             TrajPlotTrackitObjects(sortedData, trajFileName);            
             
             % Add entry into log file
