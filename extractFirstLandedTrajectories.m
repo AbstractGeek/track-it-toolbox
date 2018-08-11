@@ -105,7 +105,9 @@ for i=1:length(treatments)
             continue;
         end
         
-        % Add to log
+        % Plot object positions and add to log
+        plotObjectLocations(cs, treatments{i},...
+            trackit_traj.(treatments{i}).(days{j}), trials, currDir);
         fprintf(logid,'Object Extraction successful!. Beginning first landed trajectory extraction\n\n');
         
         for k=1:length(trials)
@@ -408,5 +410,126 @@ end
 % Sort cs based on X
 cs = sortrows(cs);
 trials(ismember(trials, objposition_names)) = [];
+
+end
+
+
+function [] = plotObjectLocations(cs, treatment, trialData, trials, currDir)
+% function [] = plotObjectLocations(cs, treatment, sortedData, filename)
+% 
+% Modified version of TrajPlotData
+% 
+% Dinesh Natesan 
+% Last updated: 12th Oct 2017
+
+trial_names = fieldnames(trialData);
+objposname = trial_names{~ismember(trial_names,trials)};
+sortedData = trialData.(objposname);
+filename = fullfile(currDir, objposname, 'detectedObjects.fig');
+
+objects = fieldnames(sortedData);
+
+% Get colors
+colors = lines(length(objects));
+
+% Plot all data
+for k = 1:length(objects)    
+    plot3(sortedData.(objects{k}).X, sortedData.(objects{k}).Y, sortedData.(objects{k}).Z,...
+        '.', 'Markersize', 25, 'Color', colors(k,:), 'DisplayName', objects{k});
+    hold on;
+end
+grid on;
+
+legend show;
+
+% Decorate plot
+decoratePlot(cs, treatment)
+
+% Save data
+savefig(filename);
+
+% Clear figure
+clf(gcf);
+
+
+function [] = decoratePlot(cs, treatment)
+%
+%
+
+% Defaults
+sphere_radius = 0.003;
+cylinder_radius = 0.00025;
+cylinder_height = 0.005;
+redcolor = [0.8980 0 0];
+palepinkcolor = [1.0000 0.8118 0.8627];
+
+% Initialize shape
+[xs,ys,zs]=sphere;
+[xc,yc,zc]=cylinder(cylinder_radius);
+
+% Initialize color
+black_sphere = zeros(21,21,3);
+red_sphere = reshape(repmat(redcolor,21*21,1),21,21,3);
+coral_sphere = reshape(repmat(palepinkcolor,21*21,1),21,21,3);
+black_cyl= zeros(2,21,3);
+red_cyl = reshape(repmat(redcolor,2*21,1),2,21,3);
+palepink_cyl = reshape(repmat(palepinkcolor,2*21,1),2,21,3);
+
+% Assign table for object shape and color
+obj_det = table(cell(size(cs,1),1),cell(size(cs,1),1),cell(size(cs,1),1),...
+    'VariableNames',{'Shape', 'Color', 'EdgeColor'});
+
+% Cleanup treatment name
+treatment = treatment(isletter(treatment)); 
+if rem(length(treatment),2) ~= 0
+    % Unknown experimental treament
+    axis on;    
+    axis tight;   
+    axis vis3d;
+    return;
+end
+obj_num = length(treatment)/2;
+
+% Assign shape based on treatment
+low_contrast = treatment(1:obj_num)=='c';
+high_contrast = treatment(1:obj_num)=='V';
+obj_det.Shape(low_contrast) = {[xc,yc,zc.*cylinder_height]};    % Low contrast cylinder
+obj_det.Shape(high_contrast) = {[xs,ys,zs].*sphere_radius};   % High contrast sphere
+
+% Obtain color characteristics of the treatment
+no_odor = ismember((1:obj_num),(find(treatment=='n')-obj_num));
+low_odor = ismember((1:obj_num),(find(treatment=='L')-obj_num));
+high_odor = ismember((1:obj_num),(find(treatment=='H')-obj_num));
+
+% Look for all combinations of vision and odor
+% vision + no odor
+obj_det.Color(low_contrast & no_odor) = {black_cyl};
+obj_det.Color(high_contrast & no_odor) = {black_sphere};
+obj_det.EdgeColor(no_odor) = {[0,0,0]};
+% vision + low odor
+obj_det.Color(low_contrast & low_odor) = {palepink_cyl};
+obj_det.Color(high_contrast & low_odor) = {coral_sphere};
+obj_det.EdgeColor(low_odor) = {palepinkcolor};
+% vision + high odor
+obj_det.Color(low_contrast & high_odor) = {red_cyl};
+obj_det.Color(high_contrast & high_odor) = {red_sphere};
+obj_det.EdgeColor(high_odor) = {redcolor};
+
+% Plot objects
+for i = 1:size(cs,1)
+    shape = obj_det.Shape{i};
+    a= shape(:,1:21)+cs(i,1);
+    b= shape(:,22:42)+cs(i,2);
+    c= shape(:,43:63)+cs(i,3);
+    surf(a,b,c,obj_det.Color{i},'EdgeColor','none',...
+        'FaceAlpha',0.2);
+end
+    
+% Make axis equal and square
+axis tight;
+axis equal;
+axis vis3d;
+
+end
 
 end
