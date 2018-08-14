@@ -1,4 +1,4 @@
-function [raw_data_matfile] = copyTrackitExperimentData(expDir,outDir,backupDir,force_rewrite)
+function [raw_data_matfile] = copyTrackitExperimentData(expDir,outDir,backupDir,backup_on,force_rewrite)
 % function [raw_data_matfile] = copyTrackitExperimentData(expDir,outDir,backupDir,force_rewrite)
 %
 % Copy all experiment data from experiment directory to output directory,
@@ -10,28 +10,28 @@ function [raw_data_matfile] = copyTrackitExperimentData(expDir,outDir,backupDir,
 % trials to the object positions and adds it appropriately (see note
 % below). The raw data is finally saved as a mat_file and its location is
 % outputted.
-% 
+%
 % Note: Folder names of experiment trials show have this format:
 %       "YYYY_MM_DD_treatmentname_tag".
 %       tag can be either trial number (automatically assigned if not
 %       present) or object positions which are required for analysis. T
 %       The code requires one object position tag for every treatment
 %       perform per day in order to consider it a valid experiment.
-%       
+%
 % Inputs:
 %       expDir: Directory containing folders of experiments.
 %       outDir: Directory to copy (and sort) experiment data.
 %       backupDir: Directory to backup the experiment data.
-%       force_rewrite:  Flag to rewrite the data even if the 
+%       force_rewrite:  Flag to rewrite the data even if the
 %                       analysis has been done before.
-% 
+%
 % Outputs:
-%   raw_data_matfile: 
-%       a mat file containing the raw data from experiments (sorted based 
-%       on treatments and experiment days). 
-% 
-% Dinesh Natesan 
-% Last modified: 12th Oct 2017
+%   raw_data_matfile:
+%       a mat file containing the raw data from experiments (sorted based
+%       on treatments and experiment days).
+%
+% Dinesh Natesan
+
 
 minTrajLength = 30;      % frames
 trackit_data_mat = 'trackit_raw_data.mat';
@@ -39,6 +39,7 @@ trackit_data_mat = 'trackit_raw_data.mat';
 if (nargin<3)
     error('extractTrajectories needs a matfile input to load raw data');
 elseif nargin == 3
+    backup_on = 0;
     force_rewrite = 0;
 end
 
@@ -52,7 +53,7 @@ dirList(ismember(dirList,{'.','..'})) = [];
 % Append events to a log file in the output directory
 log_file = fullfile(outDir, 'trackit_data_copy.log');
 logid = fopen(log_file, 'a');
-logcleanup = @() fclose(logid); 
+logcleanup = @() fclose(logid);
 fprintf(logid,'\n#################### %s ####################\n\n',datestr(now));
 
 % Clean up directory names
@@ -66,7 +67,7 @@ raw_data_matfile = fullfile(outDir,trackit_data_mat);
 % Load mat file directory
 if (exist(raw_data_matfile,'file') == 2)
     trackit_data = load(raw_data_matfile);
-else 
+else
     trackit_data = struct;
 end
 
@@ -85,11 +86,11 @@ for i=1:dirNum
     currDir = dirTable.expDirs{i};
     currFile = fullfile(expDir,currDir,dirTable.inFile{i});
     if (exist(currFile, 'file') ~= 2)
-       % file doesn't exist
-       % show a warning and continue
-       fprintf('File: %s doesn''t exit. Skipping\n', currDir);
-       fprintf(logid, 'File: %s doesn''t exist. Skipping\n', currDir);
-       continue;
+        % file doesn't exist
+        % show a warning and continue
+        fprintf('File: %s doesn''t exit. Skipping\n', currDir);
+        fprintf(logid, 'File: %s doesn''t exist. Skipping\n', currDir);
+        continue;
     end
     
     % Check if current file already exists in the data and the backup
@@ -97,16 +98,16 @@ for i=1:dirNum
     if ((exist(fullfile(fullfile(outDir, dirTable.treatment{i}, 'Raw-Data'),...
             sprintf('Filtered_%s.csv',currDir)), 'file') == 2) && ...
             (force_rewrite == 0))
-       % Folder has already been processed.
-       continue;
+        % Folder has already been processed.
+        continue;
     end
-            
+    
     
     currData = readtable(currFile);
     if ~isempty(currData) && (size(currData,1) > minTrajLength)
         % Save the trajectory data into a mat folder
-        treatment_name = dirTable.treatment{i};     
-        treatment_name(ismember(treatment_name, '(.)')) = []; % make it valid variable name        
+        treatment_name = dirTable.treatment{i};
+        treatment_name(ismember(treatment_name, '(.)')) = []; % make it valid variable name
         trackit_data.(treatment_name).(sprintf('d_%s',datestr(dirTable.dateNums(i),'yyyy_mm_dd'))).(dirTable.trialDetails{i}) = currData;
         
         % Add a treatment complete name string if it doesn't exist
@@ -114,28 +115,30 @@ for i=1:dirNum
             trackit_data.(treatment_name).name = dirTable.treatment{i};
         end
         
-        % Copy filtered data into the treatment folder                    
+        % Copy filtered data into the treatment folder
         treatmentDir = fullfile(outDir, dirTable.treatment{i}, 'Raw-Data');
-        if ~isdir(treatmentDir) 
+        if ~isdir(treatmentDir)
             % Add a entry into log file
-            mkdir(treatmentDir);           
-        end        
+            mkdir(treatmentDir);
+        end
         copyfile(currFile,fullfile(treatmentDir,sprintf('Filtered_%s.csv',currDir)));
         
-        % Move the whole folder to the backup folder
-        treatmentDir = fullfile(backupDir, dirTable.treatment{i});
-        if ~isdir(treatmentDir) 
-            % Add a entry into log file
-            mkdir(treatmentDir);           
-        end       
-        copyfile(fullfile(expDir,currDir),treatmentDir);        
+        if backup_on
+            % Move the whole folder to the backup folder
+            treatmentDir = fullfile(backupDir, dirTable.treatment{i});
+            if ~isdir(treatmentDir)
+                % Add a entry into log file
+                mkdir(treatmentDir);
+            end
+            copyfile(fullfile(expDir,currDir),fullfile(treatmentDir,currDir));
+        end
         
-        fprintf(logid, '%s: Successfully processed\n', currDir);        
+        fprintf(logid, '%s: Successfully processed\n', currDir);
     else
-        fprintf('%s has no data: Not processed\n', currDir);    
-        fprintf(logid, '%s has no data: Not processed\n', currDir);                 
+        fprintf('%s has no data: Not processed\n', currDir);
+        fprintf(logid, '%s has no data: Not processed\n', currDir);
     end
-
+    
 end
 close(h);
 
@@ -150,7 +153,7 @@ treatments = fieldnames(trackit_data);
 for i = 1:length(treatments)
     temp_struct.(treatments{i}) = trackit_data.(treatments{i}); %#ok<STRNU>
     save(fullfile(outDir,trackit_data.(treatments{i}).name,sprintf('%s_raw_data.mat',trackit_data.(treatments{i}).name)),...
-    '-struct', 'temp_struct');    
+        '-struct', 'temp_struct');
     fprintf(logid, '%s: Successful \n', trackit_data.(treatments{i}).name);
     clearvars temp_struct
 end
@@ -163,22 +166,22 @@ end
 
 function [dirTable] = decipherDirectoryNames (dirList, logid)
 % function [dirTable] = decipherDirectoryNames (dirList)
-% 
+%
 % The input dirList is a set of directories in the Trackit Data folder.
 % The output dirTable is a table with all the important attributes
 % extracted from the directory name.
-% 
+%
 % The folders should have the following naming convention:
 % 'yyyy_mm_dd_HH_MM_SS_$treatmentname_$trialdetail'
-% 
+%
 % $treatmentname should be an abbreviation for the experiment treatment. It
 % can contain most of the alphanumeric characters that is generally allowed
 % in a folder name except '_'
-% 
+%
 % $trialdetail should contain key details about the experimental trial
-% (example trial number). It too can contain most of the alphanumeric 
+% (example trial number). It too can contain most of the alphanumeric
 % characters that is generally allowed in a folder name except '_'
-% 
+%
 % Dinesh Natesan
 % 8th Feb 2017
 
@@ -195,8 +198,8 @@ split_lengths = cellfun(@length, split_names);
 valid_dir_names = split_lengths > 6;
 expDirs = dirList(valid_dir_names);
 if (any(not(valid_dir_names)))
-   fprintf('Failed import folder %s. Naming does not match usual convention \n', dirList{not(valid_dir_names)});
-   fprintf(logid, 'Failed import folder %s. Naming does not match usual convention \n', dirList{not(valid_dir_names)});   
+    fprintf('Failed import folder %s. Naming does not match usual convention \n', dirList{not(valid_dir_names)});
+    fprintf(logid, 'Failed import folder %s. Naming does not match usual convention \n', dirList{not(valid_dir_names)});
 end
 
 % extract datenums and treatment names (required attributes)

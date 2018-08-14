@@ -59,11 +59,15 @@ for i=1:length(treatments)
     days = fieldnames(trackit_traj.(treatments{i}));
     days(ismember(days, {'name'})) = [];    
     
-    csvfolder = fullfile(rootdir,trackit_traj.(treatments{i}).name);
-    trajfolder = fullfile(rootdir,trackit_traj.(treatments{i}).name,'Traj-plots (Daywise)');
+    csvfolder = fullfile(rootdir,trackit_traj.(treatments{i}).name,'First-landings');
+    trajfolder = fullfile(rootdir,trackit_traj.(treatments{i}).name,'Traj-plots');
     
-    if ~isdir(trajfolder)
+    if ~isfolder(trajfolder)
         mkdir(trajfolder);
+    end    
+    
+    if ~isfolder(csvfolder)
+        mkdir(csvfolder);
     end    
     
     for j=1:length(days)
@@ -107,7 +111,8 @@ for i=1:length(treatments)
         
         % Plot object positions and add to log
         plotObjectLocations(cs, treatments{i},...
-            trackit_traj.(treatments{i}).(days{j}), trials, currDir);
+            trackit_traj.(treatments{i}).(days{j}), trials,...
+            fullfile(trajfolder,days{j}));
         fprintf(logid,'Object Extraction successful!. Beginning first landed trajectory extraction\n\n');
         
         for k=1:length(trials)
@@ -117,14 +122,12 @@ for i=1:length(treatments)
             % Save all the tracked objects
             TrajPlotData(cs, treatments{i},...
                 trackit_traj.(treatments{i}).(days{j}).(trials{k}),...
-                fullfile(currDir, trials{k}, sprintf('%s_%s_obj.fig',days{j},...
-                trials{k})));
+                fullfile(trajfolder, days{j}, sprintf('%s_obj.fig',trials{k})));
             
             [firstLanded, selected_fly,...
                 trackit_dist_data.(treatments{i}).(days{j}).(trials{k})] = ...
                 getFirstLanded(trackit_traj.(treatments{i}).(days{j}).(trials{k}), cs,...
-                treatments{i}, fullfile(currDir, trials{k}, sprintf('%s_%s_cutoff',days{j},...
-                trials{k})));
+                treatments{i}, fullfile(trajfolder, days{j}, sprintf('%s_cutoff',trials{k})));
             
             if selected_fly                
                 % Save the xyz details
@@ -279,7 +282,7 @@ function [] = plotObjectLocations(cs, treatment, trialData, trials, currDir)
 trial_names = fieldnames(trialData);
 objposname = trial_names{~ismember(trial_names,trials)};
 sortedData = trialData.(objposname);
-filename = fullfile(currDir, objposname, 'detectedObjects.fig');
+filename = fullfile(currDir, sprintf('%s_detected.fig',objposname));
 
 objects = fieldnames(sortedData);
 

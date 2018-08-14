@@ -18,7 +18,6 @@ function [trackit_traj_matfile] = extractTrajectories(matfile, force_rewrite)
 %       experiments (sorted based on treatments and experiment days). 
 % 
 % Dinesh Natesan 
-% Last modified: 12th Oct 2017
 
 if (nargin<1)
     error('extractTrajectories needs a matfile input to load raw data');
@@ -60,7 +59,13 @@ for i=1:length(treatments)
         
         trials = fieldnames(trackit_data.(treatments{i}).(days{j}));
         currDir = fullfile(rootdir,trackit_data.(treatments{i}).name,...
-                'Sorted-Data',days{j});        
+                'Sorted-Data',days{j});             
+        figDir = fullfile(rootdir,trackit_data.(treatments{i}).name,...
+            'Traj-plots',days{j});
+        
+        if ~isfolder(figDir)
+            mkdir(figDir);
+        end
         
         if exist(fullfile(currDir, sprintf('%s_cameraData.mat', days{j})),'file') == 2
             trackit_camData = load(fullfile(currDir,...
@@ -73,14 +78,14 @@ for i=1:length(treatments)
             
             outDir = fullfile(currDir,trials{k});
             
-            if ~isdir(outDir)
+            if ~isfolder(outDir)
                 % Folder doesn't exist, hence data not processed
-                mkdir(outDir);                
+                mkdir(outDir);
             elseif (force_rewrite == 0)
                 % Folder exists (data processed once) and no rewrite.
                 continue;                
             end
-               
+                        
             % Extract objects
             [sortedData, cameraData, cameraMat] = ...
                 extractXYZfromCameraData(trackit_data.(treatments{i}).(days{j}).(trials{k}));
@@ -96,7 +101,7 @@ for i=1:length(treatments)
             end
             
             % Create trajectories of each object
-            trajFileName = fullfile(outDir, sprintf('%s_%s_raw',days{j},trials{k}));
+            trajFileName = fullfile(figDir, sprintf('%s_raw',trials{k}));
             TrajPlotTrackitObjects(sortedData, trajFileName);            
             
             % Add entry into log file
