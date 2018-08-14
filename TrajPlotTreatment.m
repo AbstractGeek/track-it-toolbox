@@ -1,6 +1,6 @@
 function [] = TrajPlotTreatment(sorted_matfile)
 % function [] = TrajPlotTreatment(sorted_matfile)
-% 
+%   
 % Plot the trajectory data for each treatment in the sorted_matfile. 
 % Combines experiment days in each treatment, aligns approporiately, and
 % plots the data. Saves it as figures with the name of the trajectory.

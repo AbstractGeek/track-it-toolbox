@@ -117,12 +117,14 @@ for i=1:length(treatments)
             % Save all the tracked objects
             TrajPlotData(cs, treatments{i},...
                 trackit_traj.(treatments{i}).(days{j}).(trials{k}),...
-                fullfile(currDir, trials{k}, sprintf('%s_%s.fig',days{j},...
+                fullfile(currDir, trials{k}, sprintf('%s_%s_obj.fig',days{j},...
                 trials{k})));
             
             [firstLanded, selected_fly,...
                 trackit_dist_data.(treatments{i}).(days{j}).(trials{k})] = ...
-                getFirstLanded(trackit_traj.(treatments{i}).(days{j}).(trials{k}), cs);
+                getFirstLanded(trackit_traj.(treatments{i}).(days{j}).(trials{k}), cs,...
+                treatments{i}, fullfile(currDir, trials{k}, sprintf('%s_%s_cutoff',days{j},...
+                trials{k})));
             
             if selected_fly                
                 % Save the xyz details
@@ -185,24 +187,6 @@ end
 save(trackit_sorted_data_matfile,'-struct','trackit_sorted_data','-v7.3');
 save(trackit_dist_data_matfile,'-struct','trackit_dist_data','-v7.3');
 
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-function [Xr] = floorn(X,n)
-% function [X] = floorn(X,n)
-%
-% Floors the input at the nth decimal place (similar to round at nth
-% decimal point)
-%
-% Dinesh Natesan
-% 10th Feb 2015
-
-Xr = floor(X*10^n)*10^-n;
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -363,7 +347,7 @@ obj_num = length(treatment)/2;
 % Assign shape based on treatment
 low_contrast = treatment(1:obj_num)=='c';
 high_contrast = treatment(1:obj_num)=='V';
-obj_det.Shape(low_contrast) = {[xc,yc,zc.*cylinder_height]};    % Low contrast cylinder
+obj_det.Shape(low_contrast) = {[xc,yc,-zc.*cylinder_height]};    % Low contrast cylinder
 obj_det.Shape(high_contrast) = {[xs,ys,zs].*sphere_radius};   % High contrast sphere
 
 % Obtain color characteristics of the treatment
