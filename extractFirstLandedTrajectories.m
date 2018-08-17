@@ -4,24 +4,26 @@ function [trackit_sorted_data_matfile] = extractFirstLandedTrajectories(matfile,
 % Sift through all the trajectories captured by the trackit system and only
 % extract the ones where the flies land on the object. Among the flies that
 % land, pick only the first fly.
-% 
+%
 % Inputs:
-%   matfile: 
-%       File location of the matfile containing all extracted trajectories 
+%   matfile:
+%       File location of the matfile containing all extracted trajectories
 %       of experiments (output of extractTrajectories function).
-%   force_rewrite: 
+%   force_rewrite:
 %       Flag to rewrite the data even if the analysis has been done before.
-% 
+%
 % Outputs:
-%   trackit_sorted_data_matfile: 
+%   trackit_sorted_data_matfile:
 %       a mat file containing the trajectories of flies that land first
-%       on the odor/visual object (sorted based on treatments and 
+%       on the odor/visual object (sorted based on treatments and
 %       experiment days).
-% 
-% Dinesh Natesan 
+%
+% Dinesh Natesan
 
 % Defaults
+sampling_rate = 120;        % frames/sec
 dist_threshold = 0.08;      % 8 cms
+max_fly_speed = 1;          % m/s
 
 % Handle inputs
 if (nargin<1)
@@ -38,21 +40,25 @@ trackit_traj = load(matfile);
 trackit_sorted_data_mat = 'trackit_sorted_data.mat';
 trackit_dist_data_mat = 'trackit_dist_data.mat';
 trackit_short_data_mat = 'trackit_short_data.mat';
+trackit_noisy_data_mat = 'trackit_noisy_data.mat';
 log_file_global = fullfile(rootdir, 'trackit_first_landed_extraction.log');
 
 trackit_sorted_data_matfile = fullfile(rootdir, trackit_sorted_data_mat);
 trackit_dist_data_matfile = fullfile(rootdir, trackit_dist_data_mat);
 trackit_short_data_matfile = fullfile(rootdir, trackit_short_data_mat);
+trackit_noisy_data_matfile = fullfile(rootdir, trackit_noisy_data_mat);
 
 if (exist(trackit_sorted_data_matfile,'file') == 2) && (force_rewrite == 0)
     trackit_sorted_data = load(trackit_sorted_data_matfile);
     trackit_dist_data = load(trackit_dist_data_matfile);
     trackit_short_data = load(trackit_short_data_matfile);
+    trackit_noisy_data = load(trackit_noisy_data_matfile);
     logid_global = fopen(log_file_global, 'a');
 else
     trackit_sorted_data = struct;
     trackit_dist_data = struct;
     trackit_short_data = struct;
+    trackit_noisy_data = struct;
     logid_global = fopen(log_file_global, 'w');
 end
 
@@ -62,33 +68,39 @@ fprintf(logid_global,'\n#################### %s ####################\n\n',...
 
 
 %% Extract First Landed Trajectory
+% Obtain speed distributions
+pooled_speeds = getPooledSpeeds(trackit_traj, sampling_rate);
+pooled_speeds = pooled_speeds(pooled_speeds<max_fly_speed);
 
 treatments = fieldnames(trackit_traj);
-
 for i=1:length(treatments)
     
     fprintf('Treatment: %s\n\n', treatments{i});
     fprintf(logid_global, 'Treatment: %s\n\n', treatments{i});
     
     curr_treatment = treatments{i};
-    object_num = sum(isletter(curr_treatment))/2;   
+    object_num = sum(isletter(curr_treatment))/2;
     
     days = fieldnames(trackit_traj.(treatments{i}));
-    days(ismember(days, {'name'})) = [];    
+    days(ismember(days, {'name'})) = [];
     
     csvfolder = fullfile(rootdir,trackit_traj.(treatments{i}).name,'First-landings');
     trajfolder = fullfile(rootdir,trackit_traj.(treatments{i}).name,'Traj-plots');
     shortfolder = fullfile(rootdir,trackit_traj.(treatments{i}).name,'Spurned-Data','Short-Data');
+    noisyfolder = fullfile(rootdir,trackit_traj.(treatments{i}).name,'Spurned-Data','Noisy-Data');
     
     if ~isfolder(trajfolder)
         mkdir(trajfolder);
-    end    
+    end
     if ~isfolder(csvfolder)
         mkdir(csvfolder);
     end
     if ~isfolder(shortfolder)
         mkdir(shortfolder);
-    end    
+    end
+    if ~isfolder(noisyfolder)
+        mkdir(noisyfolder);
+    end
     
     % Begin count of trials
     treatment_trial_total = 0;
@@ -101,7 +113,11 @@ for i=1:length(treatments)
         % Check if log_file exists
         currDir = fullfile(rootdir,trackit_traj.(treatments{i}).name,...
             'Sorted-Data',days{j});
-        log_file_local = fullfile(currDir, 'trackit_first_landed_extraction.log');        
+        if ~isfolder(currDir)
+            mkdir(currDir);
+        end
+        
+        log_file_local = fullfile(currDir, 'trackit_first_landed_extraction.log');
         if (exist(log_file_local, 'file')==2) && (force_rewrite==0)
             % Skip extraction (already done)
             continue;
@@ -121,14 +137,14 @@ for i=1:length(treatments)
         
         % Initiate day count and update treatment count
         day_trial_total = length(fieldnames(trackit_traj.(treatments{i}).(days{j}))) - 1;
-        day_trial_success = 0;      
+        day_trial_success = 0;
         treatment_trial_total = treatment_trial_total + day_trial_total;
         
         % Perform object extraction
         [cs,trials] = extractObjectLocations(...
-            trackit_traj.(treatments{i}).(days{j}),object_num);        
+            trackit_traj.(treatments{i}).(days{j}),object_num);
         
-        if isempty(trials)            
+        if isempty(trials)
             fprintf('\t\tObject Extraction: Unsuccessful. Found no object trials\n.');
             out_message = sprintf('%s\t\tObject Extraction: Unsuccessful. Found no object trials\n.', out_message);
             fclose(logid_local);
@@ -140,14 +156,17 @@ for i=1:length(treatments)
         end
         
         % Plot object positions and add to log
+        if ~isfolder(fullfile(trajfolder,days{j}))
+            mkdir(fullfile(trajfolder,days{j}));
+        end
         plotObjectLocations(cs, treatments{i},...
             trackit_traj.(treatments{i}).(days{j}), trials,...
             fullfile(trajfolder,days{j}));
-        fprintf('\t\tObject Extraction: Successful.\n');        
-        out_message = sprintf('%s\t\tObject Extraction: Successful.\n', out_message);        
+        fprintf('\t\tObject Extraction: Successful.\n');
+        out_message = sprintf('%s\t\tObject Extraction: Successful.\n', out_message);
         
         for k=1:length(trials)
-                       
+            
             % Save all the tracked objects
             TrajPlotData(cs, treatments{i},...
                 trackit_traj.(treatments{i}).(days{j}).(trials{k}),...
@@ -161,30 +180,55 @@ for i=1:length(treatments)
             
             if (any(selected_fly) && ...
                     (dist_tables.sorted_table.start_dist(1)>dist_threshold))
-                % Save the xyz details
-                trackit_sorted_data.(treatments{i}).(days{j}).(trials{k}) = ...
-                    firstLanded;
                 
-                % Save data as csv and copy to main folder
-                writetable(trackit_sorted_data.(treatments{i}).(days{j}).(trials{k}),...
-                    fullfile(currDir, sprintf('%s_%s_%s.csv',days{j}(3:end),...
-                    trackit_traj.(treatments{i}).name,trials{k})));
-                copyfile(fullfile(currDir, sprintf('%s_%s_%s.csv',days{j}(3:end),...
-                    trackit_traj.(treatments{i}).name,trials{k})), csvfolder);
-                
-                % Add to log
-                fprintf('\t\tTrial %s: Successful. Object %s landed first.\n', trials{k}, selected_fly);                
-                out_message = sprintf('%s\t\tTrial %s: Successful. Object %s landed first.\n', out_message, trials{k}, selected_fly);        
-                out_message = sprintf('%s%s', out_message, fn_message);                
-                
-                % Add one to success count
-                day_trial_success = day_trial_success + 1;
+                % Check for noise in the trajectory
+                [noise_flag] = noiseCheckTrajectory(firstLanded, pooled_speeds, sampling_rate);
+                if noise_flag
+                    % Save the xyz details to noisy data
+                    trackit_noisy_data.(treatments{i}).(days{j}).(trials{k}) = ...
+                        firstLanded;
+                    
+                    % Save data as csv into shortfolder
+                    writetable(trackit_noisy_data.(treatments{i}).(days{j}).(trials{k}),...
+                        fullfile(noisyfolder, sprintf('%s_%s_%s.csv',days{j}(3:end),...
+                        trackit_traj.(treatments{i}).name,trials{k})));
+                    
+                    % Add to log
+                    fprintf('\t\tTrial %s: Unsuccessful. Noisy Trajectory. \n', trials{k});
+                    fprintf('\t\t\tObject %s selected but did not qualify noise check.\n',...
+                        selected_fly);
+                    out_message = sprintf('%s\t\tTrial %s: Unsuccessful. Noisy Trajectory. \n',...
+                        out_message, trials{k});
+                    out_message = sprintf('%s\t\t\tObject %s selected but did not qualify noise check.\n',...
+                        out_message, selected_fly);
+                    
+                else
+                    % Save the xyz details to sorted data
+                    trackit_sorted_data.(treatments{i}).(days{j}).(trials{k}) = ...
+                        firstLanded;
+                    
+                    % Save data as csv and copy to main folder
+                    writetable(trackit_sorted_data.(treatments{i}).(days{j}).(trials{k}),...
+                        fullfile(currDir, sprintf('%s_%s_%s.csv',days{j}(3:end),...
+                        trackit_traj.(treatments{i}).name,trials{k})));
+                    copyfile(fullfile(currDir, sprintf('%s_%s_%s.csv',days{j}(3:end),...
+                        trackit_traj.(treatments{i}).name,trials{k})), csvfolder);
+                    
+                    % Add to log
+                    fprintf('\t\tTrial %s: Successful. Object %s landed first.\n', trials{k}, selected_fly);
+                    out_message = sprintf('%s\t\tTrial %s: Successful. Object %s landed first.\n', out_message, trials{k}, selected_fly);
+                    out_message = sprintf('%s%s', out_message, fn_message);
+                    
+                    % Add one to success count
+                    day_trial_success = day_trial_success + 1;
+                    
+                end
                 
             elseif selected_fly
                 % Save to short_data mat
                 trackit_short_data.(treatments{i}).(days{j}).(trials{k}) = ...
                     firstLanded;
-
+                
                 % Save data as csv into shortfolder
                 writetable(trackit_short_data.(treatments{i}).(days{j}).(trials{k}),...
                     fullfile(shortfolder, sprintf('%s_%s_%s.csv',days{j}(3:end),...
@@ -192,17 +236,18 @@ for i=1:length(treatments)
                 
                 % Add to log
                 fprintf('\t\tTrial %s: Unsuccessful. First landing criteria unmet. \n', trials{k});
-                fprintf('\t\t\tFirst landed fly started from %0.2f cm from the object (minimum start distance - %0.2f cm)\n',...
-                    dist_tables.sorted_table.start_dist(1)*100, dist_threshold*100);
+                fprintf('\t\t\tObject %s started from %0.2f cm from the object (minimum start distance - %0.2f cm)\n',...
+                    selected_fly, dist_tables.sorted_table.start_dist(1)*100, dist_threshold*100);
                 out_message = sprintf('%s\t\tTrial %s: Unsuccessful. First landing criteria unmet.\n',...
-                    out_message, trials{k});                
-                out_message = sprintf('%s\t\t\tFirst landed fly started from %0.2f cm from the object (minimum start distance - %0.2f cm)\n',...
-                    out_message, dist_tables.sorted_table.start_dist(1)*100, dist_threshold*100);
+                    out_message, trials{k});
+                out_message = sprintf('%s\t\t\tObject %s started from %0.2f cm from the object (minimum start distance - %0.2f cm)\n',...
+                    out_message, selected_fly,...
+                    dist_tables.sorted_table.start_dist(1)*100, dist_threshold*100);
             else
                 % Add to log
                 fprintf('\t\tTrial %s: Unsuccessful. No Landings on the object.\n', trials{k});
                 out_message = sprintf('%s\t\tTrial %s: Unsuccessful. No Landings on the object.\n',...
-                    out_message, trials{k});                
+                    out_message, trials{k});
             end
             
         end
@@ -226,38 +271,44 @@ for i=1:length(treatments)
         
         % Update log
         fprintf(logid_global,'%s', out_message);
-        fprintf(logid_local,'%s', out_message); 
+        fprintf(logid_local,'%s', out_message);
         fprintf(logid_local, 'FIRST LANDED TRAJECTORY EXTRACTION SUCCESSFUL\n\n');
         fclose(logid_local);
     end
-       
+    
     % Save name
     trackit_sorted_data.(treatments{i}).name = trackit_traj.(treatments{i}).name;
     trackit_dist_data.(treatments{i}).name = trackit_traj.(treatments{i}).name;
     trackit_short_data.(treatments{i}).name = trackit_traj.(treatments{i}).name;
-    
-   
+    trackit_noisy_data.(treatments{i}).name = trackit_traj.(treatments{i}).name;
+        
     % Save first landed trajectories of this treatment as a mat-file
-    temp_struct.(treatments{i}) = trackit_sorted_data.(treatments{i}); 
+    temp_struct.(treatments{i}) = trackit_sorted_data.(treatments{i});
     save(fullfile(rootdir,trackit_traj.(treatments{i}).name,...
         sprintf('%s_sorted_data.mat',trackit_traj.(treatments{i}).name)),...
         '-struct', 'temp_struct','-v7.3');
     clearvars temp_struct;
     
     % Save distance tables of this treatment in a mat-file
-    temp_struct.(treatments{i}) = trackit_dist_data.(treatments{i}); 
+    temp_struct.(treatments{i}) = trackit_dist_data.(treatments{i});
     save(fullfile(rootdir,trackit_traj.(treatments{i}).name,...
         sprintf('%s_dist_data.mat',trackit_traj.(treatments{i}).name)),...
         '-struct', 'temp_struct','-v7.3');
     clearvars temp_struct;
     
     % Save short data of this treatment in a mat-file
-    temp_struct.(treatments{i}) = trackit_short_data.(treatments{i}); 
+    temp_struct.(treatments{i}) = trackit_short_data.(treatments{i});
     save(fullfile(rootdir,trackit_traj.(treatments{i}).name,...
         sprintf('%s_short_data.mat',trackit_traj.(treatments{i}).name)),...
         '-struct', 'temp_struct','-v7.3');
     clearvars temp_struct;
     
+    % Save noisy data of this treatment in a mat-file
+    temp_struct.(treatments{i}) = trackit_noisy_data.(treatments{i});
+    save(fullfile(rootdir,trackit_traj.(treatments{i}).name,...
+        sprintf('%s_noisy_data.mat',trackit_traj.(treatments{i}).name)),...
+        '-struct', 'temp_struct','-v7.3');
+    clearvars temp_struct;
     
     % log file
     fprintf('Treatment %s: Completed. %d of %d trajectories successfully extracted\n\n',...
@@ -274,6 +325,7 @@ fclose(logid_global);
 save(trackit_sorted_data_matfile,'-struct','trackit_sorted_data','-v7.3');
 save(trackit_dist_data_matfile,'-struct','trackit_dist_data','-v7.3');
 save(trackit_short_data_matfile,'-struct','trackit_short_data','-v7.3');
+save(trackit_noisy_data_matfile,'-struct','trackit_noisy_data','-v7.3');
 
 end
 
@@ -296,16 +348,43 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+function [fsig,f]=FourierTransform(sig,Fs,n)
+% function [fsig,f]=FourierTransform(sig,Fs,n)
+% Inputs: Signal, Sampling rate, n-point DFT (Optional)
+% Outputs: fsig, f
+
+% Find n
+if nargin < 2
+    error('Signal and sampling rate are required to perform a fourier transform!');
+elseif nargin == 2
+    if (rem(length(sig),2)~=0)
+        n = length(sig)-1;
+    else
+        n = length(sig);
+    end
+elseif nargin> 3
+    error('Exceeded maximum inputs to the function!');
+end
+
+% Find fft and frequencies
+m = n/2;
+fsig = fftshift(fft(sig,n))./(n);
+f = fftshift([0:Fs/n:((m-1)/n*Fs) -m/n*Fs:Fs/n:-Fs/n]);
+
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 function [cs, trials] = extractObjectLocations(trialData, object_num)
 % function [cs, trials] = extractObjectLocations(trialData)
-% 
+%
 % A very simple function that extracts object xyz points and
 % returns it as cs. It uses object number to cluster points using k-means
 % clustering. The object number is extracted from the treatment name and
 % has to be an integer. If it is not, a default object number based
 % clustering would be performed which will be checked for validity later
-% on. 
-% 
+% on.
+%
 % Dinesh Natesan
 % 10 Feb, 2017
 
@@ -328,13 +407,13 @@ if (floor(object_num) == object_num)
     [~,cs,sumd,~] = kmeans(object_data(:,2:4),object_num);
     
     if any(round(sumd,3) ~= 0)
-       clustering_error = true; 
+        clustering_error = true;
     else
-       clustering_error = false;
+        clustering_error = false;
     end
-
-end
     
+end
+
 if ((floor(object_num) ~= object_num) || clustering_error)
     % Standard mean based object extraction
     objects = fieldnames(trialData.(objtrials{1}));
@@ -355,13 +434,89 @@ trials(ismember(trials, objposition_names)) = [];
 
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function [pooled_speeds] = getPooledSpeeds(all_data, sampling_rate)
+% [pooled_speeds] = getPooledSpeeds(all_data)
+%
+% Dinesh Natesan
+
+objposition_names = {'objpositions'};
+treatments = fieldnames(all_data);
+pooled_speeds = nan(100000000,1);
+curr_ind = 1;
+
+for i=1:length(treatments)
+    days = fieldnames(all_data.(treatments{i}));
+    days = days(~ismember(days,'name'));
+    for j=1:length(days)
+        flies = fieldnames(all_data.(treatments{i}).(days{j}));
+        flies(ismember(flies, objposition_names)) = [];
+        for k=1:length(flies)
+            objects = fieldnames(all_data.(treatments{i}).(days{j}).(flies{k}));
+            for l=1:length(objects)
+                curr_obj = all_data.(treatments{i}).(days{j}).(flies{k}).(objects{l});
+                curr_obj.time = [];
+                distance = [sqrt(sum(diff(curr_obj.Variables).^2,2))];
+                speed = distance .* sampling_rate;
+                pooled_speeds(curr_ind:curr_ind+length(speed)-1) = ...
+                    speed;
+                curr_ind = curr_ind + length(speed);
+            end
+        end
+    end
+end
+
+% Clean nans
+pooled_speeds(isnan(pooled_speeds)) = [];
+
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+function [noise_flag] = noiseCheckTrajectory(traj, pooled_speeds, sampling_rate)
+% function [noise_flag] = noiseCheckTrajectory(traj)
+%
+% Dinesh Natesan
+
+% Defaults
+fake_data_iter = 10;
+upper_cutoff = sampling_rate/2;     % Nyquist frequency (60)
+lower_cutoff = sampling_rate/3;     % (40)
+
+% Fourier spectrum of the data
+traj_speed = sqrt(sum(diff(traj(:,2:4).Variables).^2,2)) .* sampling_rate;
+[fly_sig,f] = FourierTransform(traj_speed, sampling_rate);
+
+% Generate fake data and find the mean fsig
+fake_sig = nan(size(fly_sig,1),fake_data_iter);
+for i=1:fake_data_iter
+    fake_speed = datasample(pooled_speeds, length(traj_speed));
+    [fakefly_sig,~] = FourierTransform(fake_speed, sampling_rate);
+    fake_sig(:,i) = fakefly_sig;
+end
+
+fly_sig = abs(fly_sig);
+fake_sig = median(abs(fake_sig),2);
+
+selected_ind = find(f>=lower_cutoff & f<=upper_cutoff);
+
+if any(fly_sig(selected_ind) > fake_sig(selected_ind))
+    noise_flag = true;
+else
+    noise_flag = false;
+end
+
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 function [] = plotObjectLocations(cs, treatment, trialData, trials, currDir)
 % function [] = plotObjectLocations(cs, treatment, sortedData, filename)
-% 
+%
 % Modified version of TrajPlotData
-% 
-% Dinesh Natesan 
+%
+% Dinesh Natesan
 % Last updated: 12th Oct 2017
 
 trial_names = fieldnames(trialData);
@@ -375,7 +530,7 @@ objects = fieldnames(sortedData);
 colors = lines(length(objects));
 
 % Plot all data
-for k = 1:length(objects)    
+for k = 1:length(objects)
     plot3(sortedData.(objects{k}).X, sortedData.(objects{k}).Y, sortedData.(objects{k}).Z,...
         '.', 'Markersize', 25, 'Color', colors(k,:), 'DisplayName', objects{k});
     hold on;
@@ -394,84 +549,86 @@ savefig(filename);
 clf(gcf);
 
 
-function [] = decoratePlot(cs, treatment)
-%
-%
+    function [] = decoratePlot(cs, treatment)
+        %
+        %
+        
+        % Defaults
+        sphere_radius = 0.003;
+        cylinder_radius = 0.00025;
+        cylinder_height = 0.005;
+        redcolor = [0.8980 0 0];
+        palepinkcolor = [1.0000 0.8118 0.8627];
+        
+        % Initialize shape
+        [xs,ys,zs]=sphere;
+        [xc,yc,zc]=cylinder(cylinder_radius);
+        
+        % Initialize color
+        black_sphere = zeros(21,21,3);
+        red_sphere = reshape(repmat(redcolor,21*21,1),21,21,3);
+        coral_sphere = reshape(repmat(palepinkcolor,21*21,1),21,21,3);
+        black_cyl= zeros(2,21,3);
+        red_cyl = reshape(repmat(redcolor,2*21,1),2,21,3);
+        palepink_cyl = reshape(repmat(palepinkcolor,2*21,1),2,21,3);
+        
+        % Assign table for object shape and color
+        obj_det = table(cell(size(cs,1),1),cell(size(cs,1),1),cell(size(cs,1),1),...
+            'VariableNames',{'Shape', 'Color', 'EdgeColor'});
+        
+        % Cleanup treatment name
+        treatment = treatment(isletter(treatment));
+        if rem(length(treatment),2) ~= 0
+            % Unknown experimental treament
+            axis on;
+            axis tight;
+            axis vis3d;
+            return;
+        end
+        obj_num = length(treatment)/2;
+        
+        % Assign shape based on treatment
+        low_contrast = treatment(1:obj_num)=='c';
+        high_contrast = treatment(1:obj_num)=='V';
+        obj_det.Shape(low_contrast) = {[xc,yc,-zc.*cylinder_height]};    % Low contrast cylinder
+        obj_det.Shape(high_contrast) = {[xs,ys,zs].*sphere_radius};   % High contrast sphere
+        
+        % Obtain color characteristics of the treatment
+        no_odor = ismember((1:obj_num),(find(treatment=='n')-obj_num));
+        low_odor = ismember((1:obj_num),(find(treatment=='L')-obj_num));
+        high_odor = ismember((1:obj_num),(find(treatment=='H')-obj_num));
+        
+        % Look for all combinations of vision and odor
+        % vision + no odor
+        obj_det.Color(low_contrast & no_odor) = {black_cyl};
+        obj_det.Color(high_contrast & no_odor) = {black_sphere};
+        obj_det.EdgeColor(no_odor) = {[0,0,0]};
+        % vision + low odor
+        obj_det.Color(low_contrast & low_odor) = {palepink_cyl};
+        obj_det.Color(high_contrast & low_odor) = {coral_sphere};
+        obj_det.EdgeColor(low_odor) = {palepinkcolor};
+        % vision + high odor
+        obj_det.Color(low_contrast & high_odor) = {red_cyl};
+        obj_det.Color(high_contrast & high_odor) = {red_sphere};
+        obj_det.EdgeColor(high_odor) = {redcolor};
+        
+        % Plot objects
+        for i = 1:size(cs,1)
+            shape = obj_det.Shape{i};
+            a= shape(:,1:21)+cs(i,1);
+            b= shape(:,22:42)+cs(i,2);
+            c= shape(:,43:63)+cs(i,3);
+            surf(a,b,c,obj_det.Color{i},'EdgeColor','none',...
+                'FaceAlpha',0.2);
+        end
+        
+        % Make axis equal and square
+        axis tight;
+        axis equal;
+        axis vis3d;
+        
+    end
 
-% Defaults
-sphere_radius = 0.003;
-cylinder_radius = 0.00025;
-cylinder_height = 0.005;
-redcolor = [0.8980 0 0];
-palepinkcolor = [1.0000 0.8118 0.8627];
-
-% Initialize shape
-[xs,ys,zs]=sphere;
-[xc,yc,zc]=cylinder(cylinder_radius);
-
-% Initialize color
-black_sphere = zeros(21,21,3);
-red_sphere = reshape(repmat(redcolor,21*21,1),21,21,3);
-coral_sphere = reshape(repmat(palepinkcolor,21*21,1),21,21,3);
-black_cyl= zeros(2,21,3);
-red_cyl = reshape(repmat(redcolor,2*21,1),2,21,3);
-palepink_cyl = reshape(repmat(palepinkcolor,2*21,1),2,21,3);
-
-% Assign table for object shape and color
-obj_det = table(cell(size(cs,1),1),cell(size(cs,1),1),cell(size(cs,1),1),...
-    'VariableNames',{'Shape', 'Color', 'EdgeColor'});
-
-% Cleanup treatment name
-treatment = treatment(isletter(treatment)); 
-if rem(length(treatment),2) ~= 0
-    % Unknown experimental treament
-    axis on;    
-    axis tight;   
-    axis vis3d;
-    return;
 end
-obj_num = length(treatment)/2;
 
-% Assign shape based on treatment
-low_contrast = treatment(1:obj_num)=='c';
-high_contrast = treatment(1:obj_num)=='V';
-obj_det.Shape(low_contrast) = {[xc,yc,-zc.*cylinder_height]};    % Low contrast cylinder
-obj_det.Shape(high_contrast) = {[xs,ys,zs].*sphere_radius};   % High contrast sphere
-
-% Obtain color characteristics of the treatment
-no_odor = ismember((1:obj_num),(find(treatment=='n')-obj_num));
-low_odor = ismember((1:obj_num),(find(treatment=='L')-obj_num));
-high_odor = ismember((1:obj_num),(find(treatment=='H')-obj_num));
-
-% Look for all combinations of vision and odor
-% vision + no odor
-obj_det.Color(low_contrast & no_odor) = {black_cyl};
-obj_det.Color(high_contrast & no_odor) = {black_sphere};
-obj_det.EdgeColor(no_odor) = {[0,0,0]};
-% vision + low odor
-obj_det.Color(low_contrast & low_odor) = {palepink_cyl};
-obj_det.Color(high_contrast & low_odor) = {coral_sphere};
-obj_det.EdgeColor(low_odor) = {palepinkcolor};
-% vision + high odor
-obj_det.Color(low_contrast & high_odor) = {red_cyl};
-obj_det.Color(high_contrast & high_odor) = {red_sphere};
-obj_det.EdgeColor(high_odor) = {redcolor};
-
-% Plot objects
-for i = 1:size(cs,1)
-    shape = obj_det.Shape{i};
-    a= shape(:,1:21)+cs(i,1);
-    b= shape(:,22:42)+cs(i,2);
-    c= shape(:,43:63)+cs(i,3);
-    surf(a,b,c,obj_det.Color{i},'EdgeColor','none',...
-        'FaceAlpha',0.2);
-end
-    
-% Make axis equal and square
-axis tight;
-axis equal;
-axis vis3d;
-
-end
-
-end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
