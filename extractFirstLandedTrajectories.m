@@ -30,24 +30,29 @@ elseif nargin == 1
     force_rewrite = 0;
 end
 
-% Out file
-trackit_sorted_data_mat = 'trackit_sorted_data.mat';
-trackit_dist_data_mat = 'trackit_dist_data.mat';
-log_file_global = fullfile(rootdir, 'trackit_first_landed_extraction.log');
-
+% Load matfile
 rootdir = fileparts(matfile);
 trackit_traj = load(matfile);
 
+% Out file
+trackit_sorted_data_mat = 'trackit_sorted_data.mat';
+trackit_dist_data_mat = 'trackit_dist_data.mat';
+trackit_short_data_mat = 'trackit_short_data.mat';
+log_file_global = fullfile(rootdir, 'trackit_first_landed_extraction.log');
+
 trackit_sorted_data_matfile = fullfile(rootdir, trackit_sorted_data_mat);
 trackit_dist_data_matfile = fullfile(rootdir, trackit_dist_data_mat);
+trackit_short_data_matfile = fullfile(rootdir, trackit_short_data_mat);
 
 if (exist(trackit_sorted_data_matfile,'file') == 2) && (force_rewrite == 0)
     trackit_sorted_data = load(trackit_sorted_data_matfile);
     trackit_dist_data = load(trackit_dist_data_matfile);
+    trackit_short_data = load(trackit_short_data_matfile);
     logid_global = fopen(log_file_global, 'a');
 else
     trackit_sorted_data = struct;
     trackit_dist_data = struct;
+    trackit_short_data = struct;
     logid_global = fopen(log_file_global, 'w');
 end
 
@@ -73,13 +78,16 @@ for i=1:length(treatments)
     
     csvfolder = fullfile(rootdir,trackit_traj.(treatments{i}).name,'First-landings');
     trajfolder = fullfile(rootdir,trackit_traj.(treatments{i}).name,'Traj-plots');
+    shortfolder = fullfile(rootdir,trackit_traj.(treatments{i}).name,'Spurned-Data','Short-Data');
     
     if ~isfolder(trajfolder)
         mkdir(trajfolder);
     end    
-    
     if ~isfolder(csvfolder)
         mkdir(csvfolder);
+    end
+    if ~isfolder(shortfolder)
+        mkdir(shortfolder);
     end    
     
     % Begin count of trials
@@ -115,7 +123,6 @@ for i=1:length(treatments)
         day_trial_total = length(fieldnames(trackit_traj.(treatments{i}).(days{j}))) - 1;
         day_trial_success = 0;      
         treatment_trial_total = treatment_trial_total + day_trial_total;
-
         
         % Perform object extraction
         [cs,trials] = extractObjectLocations(...
@@ -174,6 +181,15 @@ for i=1:length(treatments)
                 day_trial_success = day_trial_success + 1;
                 
             elseif selected_fly
+                % Save to short_data mat
+                trackit_short_data.(treatments{i}).(days{j}).(trials{k}) = ...
+                    firstLanded;
+
+                % Save data as csv into shortfolder
+                writetable(trackit_short_data.(treatments{i}).(days{j}).(trials{k}),...
+                    fullfile(shortfolder, sprintf('%s_%s_%s.csv',days{j}(3:end),...
+                    trackit_traj.(treatments{i}).name,trials{k})));
+                
                 % Add to log
                 fprintf('\t\tTrial %s: Unsuccessful. First landing criteria unmet. \n', trials{k});
                 fprintf('\t\t\tFirst landed fly started from %0.2f cm from the object (minimum start distance - %0.2f cm)\n',...
@@ -218,7 +234,9 @@ for i=1:length(treatments)
     % Save name
     trackit_sorted_data.(treatments{i}).name = trackit_traj.(treatments{i}).name;
     trackit_dist_data.(treatments{i}).name = trackit_traj.(treatments{i}).name;
+    trackit_short_data.(treatments{i}).name = trackit_traj.(treatments{i}).name;
     
+   
     % Save first landed trajectories of this treatment as a mat-file
     temp_struct.(treatments{i}) = trackit_sorted_data.(treatments{i}); 
     save(fullfile(rootdir,trackit_traj.(treatments{i}).name,...
@@ -233,6 +251,14 @@ for i=1:length(treatments)
         '-struct', 'temp_struct','-v7.3');
     clearvars temp_struct;
     
+    % Save short data of this treatment in a mat-file
+    temp_struct.(treatments{i}) = trackit_short_data.(treatments{i}); 
+    save(fullfile(rootdir,trackit_traj.(treatments{i}).name,...
+        sprintf('%s_short_data.mat',trackit_traj.(treatments{i}).name)),...
+        '-struct', 'temp_struct','-v7.3');
+    clearvars temp_struct;
+    
+    
     % log file
     fprintf('Treatment %s: Completed. %d of %d trajectories successfully extracted\n\n',...
         treatments{i}, treatment_trial_success, treatment_trial_total);
@@ -241,9 +267,13 @@ for i=1:length(treatments)
     
 end
 
+fprintf(logid_global, 'FIRST LANDED TRAJECTORY EXTRACTION SUCCESSFUL\n\n');
+fclose(logid_global);
+
 % Save mat file
 save(trackit_sorted_data_matfile,'-struct','trackit_sorted_data','-v7.3');
 save(trackit_dist_data_matfile,'-struct','trackit_dist_data','-v7.3');
+save(trackit_short_data_matfile,'-struct','trackit_short_data','-v7.3');
 
 end
 
