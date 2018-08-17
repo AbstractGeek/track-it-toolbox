@@ -1,4 +1,4 @@
-function [firstLanded, selected_fly, dist_tables] = ...
+function [firstLanded, selected_fly, dist_tables, out_message] = ...
     getFirstLanded(trialData, cs, treatment, filename_prefix)
 % [firstLanded, selected_obj] = getFirstLanded(trialData, cs)
 %
@@ -13,9 +13,9 @@ function [firstLanded, selected_fly, dist_tables] = ...
 % 10th Feb, 2017
 
 % Defaults
-dist_threshold = 0.08;      % 8 cms
 minimum_dist_threshold = 0.01;   % if greater than 1 cm, do not consider.
 object_radius_std = 3;  % Number of standard deviations away from the mean
+out_message = '';
 
 % Find the radius of the landed object
 objectRadius = findObjectRadius(trialData, cs,...
@@ -65,20 +65,13 @@ sorted_table = sortrows(table(objects, landed_obj_num,...
 % Add distance table struct and return that too
 dist_tables = struct('obj_table', obj_table, 'sorted_table', sorted_table);
 
-% Check if it meets the minimum distance criteria
+% Select fly based on the criteria
 selected_fly = false;
-if(boolean(size(sorted_table,1)) && ...
-    (sorted_table.start_dist(1)>=dist_threshold))
+if(boolean(size(sorted_table,1)))
+    % Set selectef fly
     selected_fly = sorted_table.objects{1};
     landed_object = sorted_table.landed_obj_num(1);
-elseif (boolean(size(sorted_table,1)))
-    fprintf('\t\t\tFound a landing that started inside the 8cm sphere (not considering it)\n');
-else
-    fprintf('\t\t\tFound no landings\n');
-end
 
-
-if selected_fly
     % Create table and reset time
     firstLanded =  trialData.(selected_fly);
     firstLanded.time = firstLanded.time - firstLanded.time(1);
@@ -112,7 +105,7 @@ if selected_fly
 
     else
         if length(transitions) > 1        
-            fprintf('\t\t\tMore than one transitions into the landing cutoff sphere.\n\t\t\tConsidering the first entry as cutoff.\n');        
+            out_message = sprintf('\t\t\tMultiple transitions into the landing cutoff sphere.\n\t\t\tTrajectory cutoff at first entry.\n');        
         end
         
         % Object transitions table

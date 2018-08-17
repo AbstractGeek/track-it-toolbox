@@ -19,8 +19,11 @@ function [trackit_sorted_data_matfile] = extractFirstLandedTrajectories(matfile,
 %       experiment days).
 % 
 % Dinesh Natesan 
-% Last modified: 12th Oct 2017
 
+% Defaults
+dist_threshold = 0.08;      % 8 cms
+
+% Handle inputs
 if (nargin<1)
     error('extractFirstLandedTrajectories needs a rootdir input to load matfiles');
 elseif nargin == 1
@@ -30,6 +33,7 @@ end
 % Out file
 trackit_sorted_data_mat = 'trackit_sorted_data.mat';
 trackit_dist_data_mat = 'trackit_dist_data.mat';
+log_file_global = fullfile(rootdir, 'trackit_first_landed_extraction.log');
 
 rootdir = fileparts(matfile);
 trackit_traj = load(matfile);
@@ -40,10 +44,17 @@ trackit_dist_data_matfile = fullfile(rootdir, trackit_dist_data_mat);
 if (exist(trackit_sorted_data_matfile,'file') == 2) && (force_rewrite == 0)
     trackit_sorted_data = load(trackit_sorted_data_matfile);
     trackit_dist_data = load(trackit_dist_data_matfile);
+    logid_global = fopen(log_file_global, 'a');
 else
     trackit_sorted_data = struct;
     trackit_dist_data = struct;
+    logid_global = fopen(log_file_global, 'w');
 end
+
+% Initialize global log file
+fprintf(logid_global,'\n#################### %s ####################\n\n',...
+    datestr(now));
+
 
 %% Extract First Landed Trajectory
 
@@ -51,7 +62,8 @@ treatments = fieldnames(trackit_traj);
 
 for i=1:length(treatments)
     
-    fprintf('Processing treatment %s\n', treatments{i});
+    fprintf('Treatment: %s\n\n', treatments{i});
+    fprintf(logid_global, 'Treatment: %s\n\n', treatments{i});
     
     curr_treatment = treatments{i};
     object_num = sum(isletter(curr_treatment))/2;   
@@ -70,42 +82,53 @@ for i=1:length(treatments)
         mkdir(csvfolder);
     end    
     
+    % Begin count of trials
+    treatment_trial_total = 0;
+    treatment_trial_success = 0;
+    
     for j=1:length(days)
         
-        fprintf('\tProcessing day %s\n', days{j});
-        
-        currDir = fullfile(rootdir,trackit_traj.(treatments{i}).name,...
-            'Sorted-Data',days{j});
+        fprintf('\tDay: %s\n', days{j});
         
         % Check if log_file exists
-        log_file = fullfile(currDir, 'trackit_first_landed_extraction.log');
-        
-        if (exist(log_file, 'file')==2) && (force_rewrite==0)
+        currDir = fullfile(rootdir,trackit_traj.(treatments{i}).name,...
+            'Sorted-Data',days{j});
+        log_file_local = fullfile(currDir, 'trackit_first_landed_extraction.log');        
+        if (exist(log_file_local, 'file')==2) && (force_rewrite==0)
             % Skip extraction (already done)
             continue;
         end
         
         % Append events to log file
-        logid = fopen(log_file, 'a');
-        fprintf(logid,'\n#################### %s ####################\n\n',...
+        if force_rewrite
+            logid_local = fopen(log_file_local, 'w');
+        else
+            logid_local = fopen(log_file_local, 'a');
+        end
+        fprintf(logid_local,'\n#################### %s ####################\n\n',...
             datestr(now));
+        
+        % Initiate out message string.
+        out_message = sprintf('\tDay: %s\n', days{j});
+        
+        % Initiate day count and update treatment count
+        day_trial_total = length(fieldnames(trackit_traj.(treatments{i}).(days{j}))) - 1;
+        day_trial_success = 0;      
+        treatment_trial_total = treatment_trial_total + day_trial_total;
+
         
         % Perform object extraction
         [cs,trials] = extractObjectLocations(...
             trackit_traj.(treatments{i}).(days{j}),object_num);        
         
-        if isempty(trials)
-            fprintf('Found no object trials in day %s of treatment %s. Skipping day\n',...
-                days{j}(3:end), treatments{i});
-            fprintf(logid, 'Found no object trials in day %s of treatment %s. Skipping day\n',...
-                cs, days{j}(3:end), treatments{i});
-            fclose(logid);
+        if isempty(trials)            
+            fprintf('\t\tObject Extraction: Unsuccessful. Found no object trials\n.');
+            out_message = sprintf('%s\t\tObject Extraction: Unsuccessful. Found no object trials\n.', out_message);
+            fclose(logid_local);
             continue;
         elseif size(cs,1)> sum(isletter(curr_treatment))/2
-            fprintf('Found too many visual/odor objects in day %s of treatment %s. Skipping day\n',...
-                days{j}(3:end), treatments{i});
-            fprintf(logid,'Found too many visual/odor objects in day %s of treatment %s. Skipping day\n',...
-                days{j}(3:end), treatments{i});
+            fprintf('\t\tObject Extraction: Unsuccessful. Found too many objects\n.');
+            out_message = sprintf('%s\t\tObject Extraction: Unsuccessful. Found too many objects\n.', out_message);
             continue;
         end
         
@@ -113,23 +136,24 @@ for i=1:length(treatments)
         plotObjectLocations(cs, treatments{i},...
             trackit_traj.(treatments{i}).(days{j}), trials,...
             fullfile(trajfolder,days{j}));
-        fprintf(logid,'Object Extraction successful!. Beginning first landed trajectory extraction\n\n');
+        fprintf('\t\tObject Extraction: Successful.\n');        
+        out_message = sprintf('%s\t\tObject Extraction: Successful.\n', out_message);        
         
         for k=1:length(trials)
-            
-            fprintf('\t\tProcessing trial %s\n', trials{k});
-            
+                       
             % Save all the tracked objects
             TrajPlotData(cs, treatments{i},...
                 trackit_traj.(treatments{i}).(days{j}).(trials{k}),...
                 fullfile(trajfolder, days{j}, sprintf('%s_obj.fig',trials{k})));
             
             [firstLanded, selected_fly,...
-                trackit_dist_data.(treatments{i}).(days{j}).(trials{k})] = ...
+                dist_tables, fn_message] = ...
                 getFirstLanded(trackit_traj.(treatments{i}).(days{j}).(trials{k}), cs,...
                 treatments{i}, fullfile(trajfolder, days{j}, sprintf('%s_cutoff',trials{k})));
+            trackit_dist_data.(treatments{i}).(days{j}).(trials{k}) = dist_tables;
             
-            if selected_fly                
+            if (any(selected_fly) && ...
+                    (dist_tables.sorted_table.start_dist(1)>dist_threshold))
                 % Save the xyz details
                 trackit_sorted_data.(treatments{i}).(days{j}).(trials{k}) = ...
                     firstLanded;
@@ -142,14 +166,27 @@ for i=1:length(treatments)
                     trackit_traj.(treatments{i}).name,trials{k})), csvfolder);
                 
                 % Add to log
-                fprintf(logid, '%s: %s selected as the first landed fly.\nTrajectory successfully saved as csv\n\n',...
-                    sprintf('%s_%s_%s',days{j}(3:end),...
-                    trackit_traj.(treatments{i}).name,trials{k}), selected_fly);                
+                fprintf('\t\tTrial %s: Successful. Object %s landed first.\n', trials{k}, selected_fly);                
+                out_message = sprintf('%s\t\tTrial %s: Successful. Object %s landed first.\n', out_message, trials{k}, selected_fly);        
+                out_message = sprintf('%s%s', out_message, fn_message);                
+                
+                % Add one to success count
+                day_trial_success = day_trial_success + 1;
+                
+            elseif selected_fly
+                % Add to log
+                fprintf('\t\tTrial %s: Unsuccessful. First landing criteria unmet. \n', trials{k});
+                fprintf('\t\t\tFirst landed fly started from %0.2f cm from the object (minimum start distance - %0.2f cm)\n',...
+                    dist_tables.sorted_table.start_dist(1)*100, dist_threshold*100);
+                out_message = sprintf('%s\t\tTrial %s: Unsuccessful. First landing criteria unmet.\n',...
+                    out_message, trials{k});                
+                out_message = sprintf('%s\t\t\tFirst landed fly started from %0.2f cm from the object (minimum start distance - %0.2f cm)\n',...
+                    out_message, dist_tables.sorted_table.start_dist(1)*100, dist_threshold*100);
             else
                 % Add to log
-                fprintf(logid, '%s: No object selected as the first landed fly as none of the qualified all criteria\n\n',...
-                    sprintf('%s_%s_%s',days{j}(3:end),...
-                    trackit_traj.(treatments{i}).name,trials{k}));
+                fprintf('\t\tTrial %s: Unsuccessful. No Landings on the object.\n', trials{k});
+                out_message = sprintf('%s\t\tTrial %s: Unsuccessful. No Landings on the object.\n',...
+                    out_message, trials{k});                
             end
             
         end
@@ -162,10 +199,22 @@ for i=1:length(treatments)
                 trackit_traj.(treatments{i}).name)));
         end
         
-        fprintf(logid, 'FIRST LANDED TRAJECTORY EXTRACTION SUCCESSFUL\n\n');
-        fclose(logid);
+        % Add to treatment count
+        treatment_trial_success = treatment_trial_success + day_trial_success;
+        
+        % Add counts
+        fprintf('\tDay %s: Completed. %d of %d trajectories successfully extracted\n\n',...
+            days{j}, day_trial_success, day_trial_total);
+        out_message = sprintf('%s\tDay %s: Completed. %d of %d trajectories successfully extracted\n\n',...
+            out_message, days{j}, day_trial_success, day_trial_total);
+        
+        % Update log
+        fprintf(logid_global,'%s', out_message);
+        fprintf(logid_local,'%s', out_message); 
+        fprintf(logid_local, 'FIRST LANDED TRAJECTORY EXTRACTION SUCCESSFUL\n\n');
+        fclose(logid_local);
     end
-    
+       
     % Save name
     trackit_sorted_data.(treatments{i}).name = trackit_traj.(treatments{i}).name;
     trackit_dist_data.(treatments{i}).name = trackit_traj.(treatments{i}).name;
@@ -183,6 +232,12 @@ for i=1:length(treatments)
         sprintf('%s_dist_data.mat',trackit_traj.(treatments{i}).name)),...
         '-struct', 'temp_struct','-v7.3');
     clearvars temp_struct;
+    
+    % log file
+    fprintf('Treatment %s: Completed. %d of %d trajectories successfully extracted\n\n',...
+        treatments{i}, treatment_trial_success, treatment_trial_total);
+    fprintf(logid_global,'Treatment %s: Completed. %d of %d trajectories successfully extracted\n\n',...
+        treatments{i}, treatment_trial_success, treatment_trial_total);
     
 end
 
