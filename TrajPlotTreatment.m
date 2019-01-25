@@ -1,6 +1,6 @@
-function [] = TrajPlotTreatment(sorted_matfile)
+function [] = TrajPlotTreatment(sorted_matfile, save_dir)
 % function [] = TrajPlotTreatment(sorted_matfile)
-% 
+%   
 % Plot the trajectory data for each treatment in the sorted_matfile. 
 % Combines experiment days in each treatment, aligns approporiately, and
 % plots the data. Saves it as figures with the name of the trajectory.
@@ -21,6 +21,12 @@ function [] = TrajPlotTreatment(sorted_matfile)
 data = load(sorted_matfile);
 rootdir = fileparts(sorted_matfile);
 treatments = fieldnames(data);
+
+if nargin == 1
+    save_dir = rootdir;
+elseif nargin>2
+   error('TrajPlotTreatment takes a maximum two arguments'); 
+end
 
 % run through each treatment
 for i=1:length(treatments)
@@ -60,7 +66,7 @@ for i=1:length(treatments)
     
     % Plot data for whole of the treatment
     TrajPlotData(cs,treatments{i},treatmentData,...
-        fullfile(rootdir,sprintf('%s.fig',treatments{i})));
+        fullfile(save_dir,sprintf('%s.fig',treatments{i})));
     
     
 end

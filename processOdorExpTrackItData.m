@@ -6,6 +6,7 @@
 
 %% Defaults
 force_rewrite = 1;
+backup_on = 0;
 
 %% Get the experiment folder, output folder and backup folder
 expDir = uigetdir(pwd,'Experiment Folder (Trackit save folder)');
@@ -17,7 +18,7 @@ rootDir = fileparts(backupDir);
 save_folder = uigetdir(rootDir,'Sorted data folder (sorted data)');
 
 %% Process trackit data
-raw_data_matfile = copyTrackitExperimentData(expDir,outDir,backupDir,force_rewrite);
+raw_data_matfile = copyTrackitExperimentData(expDir,outDir,backupDir,backup_on,force_rewrite);
 all_traj_matfile = extractTrajectories(raw_data_matfile, force_rewrite);
 sorted_matfile = extractFirstLandedTrajectories(all_traj_matfile, force_rewrite);
 

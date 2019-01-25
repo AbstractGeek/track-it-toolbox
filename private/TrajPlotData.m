@@ -93,7 +93,7 @@ obj_num = length(treatment)/2;
 % Assign shape based on treatment
 low_contrast = treatment(1:obj_num)=='c';
 high_contrast = treatment(1:obj_num)=='V';
-obj_det.Shape(low_contrast) = {[xc,yc,zc.*cylinder_height]};    % Low contrast cylinder
+obj_det.Shape(low_contrast) = {[xc,yc,-zc.*cylinder_height]};    % Low contrast cylinder
 obj_det.Shape(high_contrast) = {[xs,ys,zs].*sphere_radius};   % High contrast sphere
 
 % Obtain color characteristics of the treatment
